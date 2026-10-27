@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireUserOrRedirect } from "@/lib/auth/rbac";
 import { SignOutButton } from "./sign-out-button";
 
@@ -15,6 +16,14 @@ export default async function DashboardPage() {
         the real role-specific dashboards (baseline §11) land once the CRM,
         Projects, and NPD modules exist to read data from.
       </p>
+
+      <nav style={{ display: "flex", gap: 16, margin: "16px 0" }}>
+        {user.role === "ADMIN" ? <Link href="/admin/users">Users</Link> : null}
+        {user.role === "ADMIN" || user.role === "PROJECT_LEAD" ? (
+          <Link href="/clients">Clients</Link>
+        ) : null}
+      </nav>
+
       <SignOutButton />
     </main>
   );

@@ -32,12 +32,14 @@ npm run dev
 Then sign in at `/login` with the admin credentials you put in `.env`, and
 remove `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` from it afterwards.
 
-> **Note on this sandbox:** `npm run typecheck` here shows two errors
-> (`Role` not exported from `@prisma/client`) because this development
-> environment's network policy blocks Prisma's engine-binary download, so
-> `prisma generate` can't complete here. Both errors disappear once you run
-> `npm run prisma:generate` with normal internet access (locally or in CI) —
-> it's an environment limitation, not a code defect. ESLint is clean.
+> **Note on this sandbox:** `npm run typecheck` shows a cluster of errors
+> here — all trace back to one cause: this development environment's
+> network policy blocks Prisma's engine-binary download, so `prisma
+> generate` can't complete, `@prisma/client` has no generated types, and
+> every `prisma.*` call (plus anything inferred from its results) type-checks
+> as `any` under `strict` mode. All of them disappear once you run `npm run
+> prisma:generate` with normal internet access (locally or in CI) — it's an
+> environment limitation, not a code defect. ESLint is clean throughout.
 
 ## Project structure
 
@@ -55,9 +57,38 @@ around existing code:
 1. **Project scaffold** — done. Next.js/TypeScript/Prisma wiring, no secrets committed.
 2. **Database schema & migrations** — done. `prisma/schema.prisma` encodes the confirmed decisions (roles, formulation versioning, decimal money, deferred inventory).
 3. **Auth & server-side RBAC** — done for email/password. `lib/auth/` has password hashing, DB-backed sessions (revocable — Decision #9), and `requireUser`/`requireRole`/`assertProjectAccess` helpers every route and page must call explicitly (no implicit protection via folder nesting). SSO/OAuth (Google/Microsoft for staff) is a planned follow-on, not built yet — the `Session` model and cookie-based approach were chosen so adding an OAuth provider later doesn't require a redesign.
-4. **Core module APIs**, in dependency order: Users → Clients/CRM → Projects/Tasks → NPD/Formulations/Trials → Documents → Costing/Invoices. Each module ships with its own permission and integrity tests.
+4. **Core module APIs**, in dependency order: **Users → Clients/CRM** (done) → Projects/Tasks → NPD/Formulations/Trials → Documents → Costing/Invoices. Each module ships with its own permission and integrity tests — see "Users & CRM, as built" below for what's covered so far and what's intentionally deferred.
 5. **Role dashboards & UI** — built against the real APIs above, in plain language for non-technical users.
 6. **Audit trail & test suite** — audit logging wired across sensitive actions; cross-client, assignment-boundary, and cost/invoice tests from the baseline's acceptance criteria.
+
+## Users & CRM, as built
+
+- **Users** (`/admin/users`, `app/api/users`): Admin-only, matching baseline
+  §4 ("Users & settings" row — Admin manages, everyone else has no access).
+  No self-registration anywhere; Admin sets a temporary password directly
+  (there's no invite-email flow yet — a near-term follow-up, not this
+  module). Deactivating a user, or changing their role, immediately revokes
+  all their sessions. You can't deactivate or demote the last active Admin —
+  a safety check against accidental lockout, not a baseline requirement.
+- **Clients / CRM** (`/clients`, `app/api/clients`): follows the baseline §4
+  matrix — Admin full access, Project Lead "assigned/authorized clients",
+  NPD Executive and Client no access. **One interpretation worth flagging:**
+  the baseline doesn't define what "assigned/authorized" means precisely.
+  Here, a Project Lead sees a client organization only if they're assigned
+  (via `ProjectAssignment`) to at least one project under it, and within
+  that scope they can add/edit **contacts** but not rename the organization
+  itself (Admin-only). This is a reasonable reading, not a confirmed
+  decision like the numbered 12 — flag it if Food Monk wants it tighter or
+  looser; every query runs through `lib/crm/scope.ts`, so it's a one-place
+  change.
+- **Leads** (the `Lead` model) exist in the schema but have no API/UI yet —
+  lead capture and lead-to-client conversion naturally come after Projects
+  exists (conversion creates a Project), so they're deferred to that step
+  rather than built ahead of what they depend on.
+- Every create/update in both modules writes an `AuditLog` row in the same
+  database transaction as the change itself (baseline §7: operations that
+  must succeed or fail together use one transaction) — not as a
+  best-effort afterthought.
 
 ## Auth, as built
 
