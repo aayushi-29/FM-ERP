@@ -22,6 +22,7 @@ export default async function DashboardPage() {
         {user.role === "ADMIN" || user.role === "PROJECT_LEAD" ? (
           <Link href="/clients">Clients</Link>
         ) : null}
+        <Link href="/projects">Projects</Link>
       </nav>
 
       <SignOutButton />

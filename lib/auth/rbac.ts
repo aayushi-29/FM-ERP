@@ -75,3 +75,14 @@ export async function assertProjectAccess(user: SessionUser, projectId: string) 
   });
   if (!assignment) throw new ForbiddenError("Not assigned to this project");
 }
+
+// Page-component variant: redirects instead of throwing, matching
+// requireRoleOrRedirect's convention for server components.
+export async function assertProjectAccessOrRedirect(user: SessionUser, projectId: string): Promise<void> {
+  try {
+    await assertProjectAccess(user, projectId);
+  } catch (err) {
+    if (err instanceof ForbiddenError) redirect("/forbidden");
+    throw err;
+  }
+}
