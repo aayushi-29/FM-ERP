@@ -16,8 +16,14 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Most cloud Postgres providers (Neon, Supabase) front the app's own
+  // connection with a pgBouncer-style pooler. Prisma migrations need a
+  // direct, unpooled connection — DIRECT_URL — or `migrate deploy` fails
+  // against a pooled one. Both point at the same database; if your
+  // provider doesn't pool (plain local Postgres), set them identically.
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------- Identity & access ----------
