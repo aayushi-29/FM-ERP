@@ -1,0 +1,524 @@
+// Food Monk ERP — schema v1
+//
+// Encodes the confirmed decisions (see /docs/decisions.md):
+//  #1 four roles, server-enforced          #7 inventory deferred to Phase 2 — records only here
+//  #2 multiple users per client org        #9 audit log present from day one
+//  #3 versioned formulations + reapproval  #11 n/a (UI theme, not schema)
+//  #4 configurable costing, decimal money
+//
+// This is the MVP surface only (baseline §3 / §7). No stock-movement ledger,
+// no purchase orders — those are Phase 2. Nothing here assumes a GST rate or
+// invoice-numbering scheme; those fields are configurable, filled in once the
+// accountant confirms Decisions #4 and #6.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Identity & access ----------
+
+enum Role {
+  ADMIN
+  PROJECT_LEAD
+  NPD_EXECUTIVE
+  CLIENT
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  role          Role
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Decision #2: a CLIENT user belongs to exactly one client organization.
+  // PROJECT_LEAD / NPD_EXECUTIVE scope comes from ProjectAssignment instead.
+  clientOrgId   String?
+  clientOrg     ClientOrganization? @relation(fields: [clientOrgId], references: [id])
+
+  projectsLed       Project[]          @relation("ProjectLead")
+  projectAssignments ProjectAssignment[]
+  tasksAssigned      Task[]            @relation("TaskAssignee")
+  formulationEdits   FormulationVersion[] @relation("FormulationAuthor")
+  approvals          Approval[]        @relation("Approver")
+  documentsUploaded  Document[]        @relation("DocumentUploader")
+  auditEntries       AuditLog[]        @relation("AuditActor")
+
+  @@index([clientOrgId])
+}
+
+model ClientOrganization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  users    User[]
+  contacts ClientContact[]
+  projects Project[]
+}
+
+model ClientContact {
+  id            String   @id @default(cuid())
+  clientOrgId   String
+  clientOrg     ClientOrganization @relation(fields: [clientOrgId], references: [id])
+  name          String
+  email         String?
+  phone         String?
+  isPrimary     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([clientOrgId])
+}
+
+// Scopes a PROJECT_LEAD or NPD_EXECUTIVE to specific projects — the
+// record-level check referenced throughout the baseline (§4), enforced in
+// server code on every query, not inferred from role alone.
+model ProjectAssignment {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id])
+  assignedAt DateTime @default(now())
+
+  @@unique([userId, projectId])
+  @@index([projectId])
+}
+
+// ---------- CRM ----------
+
+enum LeadStatus {
+  OPEN
+  QUALIFIED
+  CONVERTED
+  LOST
+}
+
+model Lead {
+  id          String     @id @default(cuid())
+  companyName String
+  contactName String
+  email       String?
+  phone       String?
+  status      LeadStatus @default(OPEN)
+  notes       String?
+  createdAt   DateTime   @default(now())
+  convertedToProjectId String?
+}
+
+// ---------- Delivery: projects, tasks, milestones ----------
+
+enum ProjectStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  clientOrgId String
+  clientOrg   ClientOrganization @relation(fields: [clientOrgId], references: [id])
+  leadId      String
+  lead        User          @relation("ProjectLead", fields: [leadId], references: [id])
+  status      ProjectStatus @default(ACTIVE)
+  scope       String?
+  targetDate  DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  assignments ProjectAssignment[]
+  tasks       Task[]
+  milestones  Milestone[]
+  products    Product[]
+  documents   Document[]
+  costSheets  CostSheet[]
+  invoices    Invoice[]
+  expenses    ProjectExpense[]
+  activity    ProjectActivity[]
+
+  @@index([clientOrgId])
+  @@index([leadId])
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  DONE
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  projectId   String
+  project     Project    @relation(fields: [projectId], references: [id])
+  title       String
+  description String?
+  status      TaskStatus @default(TODO)
+  assigneeId  String?
+  assignee    User?      @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  dueDate     DateTime?
+  dependsOnId String?
+  dependsOn   Task?      @relation("TaskDependency", fields: [dependsOnId], references: [id])
+  dependents  Task[]     @relation("TaskDependency")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([projectId])
+  @@index([assigneeId])
+}
+
+enum MilestoneStatus {
+  PENDING
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model Milestone {
+  id        String          @id @default(cuid())
+  projectId String
+  project   Project         @relation(fields: [projectId], references: [id])
+  title     String
+  dueDate   DateTime?
+  status    MilestoneStatus @default(PENDING)
+  createdAt DateTime        @default(now())
+
+  @@index([projectId])
+}
+
+model ProjectActivity {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  actorId   String
+  summary   String
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+}
+
+// ---------- NPD: products, formulations, trials ----------
+
+model Product {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  name      String
+  createdAt DateTime @default(now())
+
+  formulations Formulation[]
+
+  @@index([projectId])
+}
+
+model Formulation {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  name      String
+  createdAt DateTime @default(now())
+
+  versions FormulationVersion[]
+
+  @@index([productId])
+}
+
+// Decision #3: Draft -> In Review -> Approved (or Rejected). An approved
+// version is immutable — a later change creates a NEW version row, it never
+// edits this one. previousVersionId chains the history.
+enum FormulationVersionStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model FormulationVersion {
+  id                 String   @id @default(cuid())
+  formulationId      String
+  formulation        Formulation @relation(fields: [formulationId], references: [id])
+  versionNumber      Int
+  status             FormulationVersionStatus @default(DRAFT)
+  previousVersionId  String?
+  previousVersion    FormulationVersion? @relation("FormulationHistory", fields: [previousVersionId], references: [id])
+  nextVersions       FormulationVersion[] @relation("FormulationHistory")
+  authorId           String
+  author             User     @relation("FormulationAuthor", fields: [authorId], references: [id])
+  processNotes       String?
+  createdAt          DateTime @default(now())
+  submittedAt        DateTime?
+  decidedAt          DateTime?
+
+  ingredientLines IngredientLine[]
+  trials          Trial[]
+  costSheets      CostSheet[]
+  approvals       Approval[]
+
+  @@unique([formulationId, versionNumber])
+  @@index([formulationId])
+}
+
+model IngredientLine {
+  id                   String   @id @default(cuid())
+  formulationVersionId String
+  formulationVersion   FormulationVersion @relation(fields: [formulationVersionId], references: [id])
+  materialName         String
+  rawMaterialId        String?
+  rawMaterial          RawMaterial? @relation(fields: [rawMaterialId], references: [id])
+  quantity             Decimal  @db.Decimal(14, 4)
+  unit                 String
+  percentage           Decimal? @db.Decimal(6, 3)
+  technicalNotes       String?
+
+  @@index([formulationVersionId])
+}
+
+enum TrialStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETE
+}
+
+model Trial {
+  id                   String   @id @default(cuid())
+  formulationVersionId String
+  formulationVersion   FormulationVersion @relation(fields: [formulationVersionId], references: [id])
+  conductedById        String
+  status               TrialStatus @default(PLANNED)
+  parameters           String?
+  results              String?
+  reviewerNotes        String?
+  materialLotUsed      String?   // free-text reference only in MVP — full lot ledger is Phase 2
+  quantityConsumed     Decimal?  @db.Decimal(14, 4)
+  conductedAt           DateTime @default(now())
+
+  attachments TrialAttachment[]
+
+  @@index([formulationVersionId])
+}
+
+model TrialAttachment {
+  id        String   @id @default(cuid())
+  trialId   String
+  trial     Trial    @relation(fields: [trialId], references: [id])
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id])
+
+  @@index([trialId])
+}
+
+// Generic approval record — used by formulation versions and milestones.
+// Points at the exact record + version approved; never overwritten.
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
+model Approval {
+  id                   String   @id @default(cuid())
+  formulationVersionId String?
+  formulationVersion   FormulationVersion? @relation(fields: [formulationVersionId], references: [id])
+  approverId           String
+  approver             User     @relation("Approver", fields: [approverId], references: [id])
+  decision             ApprovalDecision
+  comment              String?
+  decidedAt            DateTime @default(now())
+
+  @@index([formulationVersionId])
+}
+
+// ---------- Documents ----------
+
+enum DocumentType {
+  CONTRACT
+  TECHNICAL_SPEC
+  FORMULATION_SUMMARY   // the client-approved view — distinct from the full recipe
+  TRIAL_RECORD
+  COMMERCIAL
+  OTHER
+}
+
+enum DocumentVisibility {
+  INTERNAL_ONLY
+  CLIENT_VISIBLE
+}
+
+model Document {
+  id         String       @id @default(cuid())
+  projectId  String
+  project    Project      @relation(fields: [projectId], references: [id])
+  type       DocumentType
+  visibility DocumentVisibility @default(INTERNAL_ONLY)
+  uploadedById String
+  uploadedBy   User       @relation("DocumentUploader", fields: [uploadedById], references: [id])
+  createdAt  DateTime     @default(now())
+
+  versions         DocumentVersion[]
+  trialAttachments TrialAttachment[]
+
+  @@index([projectId])
+}
+
+model DocumentVersion {
+  id            String   @id @default(cuid())
+  documentId    String
+  document      Document @relation(fields: [documentId], references: [id])
+  versionNumber Int
+  storageKey    String   // private object-storage key, never a public URL
+  fileName      String
+  fileSizeBytes Int
+  uploadedAt    DateTime @default(now())
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId])
+}
+
+// ---------- Commercial: costing, invoicing, payments ----------
+
+// Decision #4: configurable costing — this snapshot records the inputs and
+// assumptions used, not just a total, so a historical estimate stays
+// explainable. All money/quantity fields are Decimal — never Float.
+model CostSheet {
+  id                   String   @id @default(cuid())
+  projectId            String
+  project              Project  @relation(fields: [projectId], references: [id])
+  formulationVersionId String
+  formulationVersion   FormulationVersion @relation(fields: [formulationVersionId], references: [id])
+  priceBasis           String   // "estimate" | "supplier_quote" | "actual" — confirm enum with Food Monk
+  yieldPercent         Decimal  @db.Decimal(6, 3)
+  wastagePercent       Decimal  @db.Decimal(6, 3)
+  packagingCost        Decimal  @db.Decimal(14, 2)
+  processingCost       Decimal  @db.Decimal(14, 2)
+  labourCost           Decimal  @db.Decimal(14, 2)
+  testingCost          Decimal  @db.Decimal(14, 2)
+  overheadCost         Decimal  @db.Decimal(14, 2)
+  costPerBatch         Decimal  @db.Decimal(14, 2)
+  costPerUnit          Decimal  @db.Decimal(14, 4)
+  currency             String   @default("INR")
+  supersedesId         String?  // a recalculation creates a new row and points here — never overwrites
+  supersedes           CostSheet? @relation("CostSheetHistory", fields: [supersedesId], references: [id])
+  supersededBy         CostSheet[] @relation("CostSheetHistory")
+  createdAt            DateTime @default(now())
+
+  @@index([projectId])
+  @@index([formulationVersionId])
+}
+
+model ProjectExpense {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  description String
+  amount      Decimal  @db.Decimal(14, 2)
+  currency    String   @default("INR")
+  incurredAt  DateTime @default(now())
+
+  @@index([projectId])
+}
+
+// Decision #5: milestones are contract-specific and configurable — this is
+// NOT a fixed 60/25/15 split, it's a per-invoice configurable row.
+model Invoice {
+  id             String   @id @default(cuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id])
+  invoiceNumber  String   @unique // numbering scheme TBD — Decision #6, accountant to confirm
+  milestoneLabel String?
+  amount         Decimal  @db.Decimal(14, 2)
+  currency       String   @default("INR")
+  dueDate        DateTime?
+  status         String   @default("DRAFT") // DRAFT | SENT | PARTIALLY_PAID | PAID | CANCELLED
+  createdAt      DateTime @default(now())
+
+  lines    InvoiceLine[]
+  payments Payment[]
+  creditNotes CreditNote[]
+
+  @@index([projectId])
+}
+
+model InvoiceLine {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+  description String
+  amount      Decimal  @db.Decimal(14, 2)
+
+  @@index([invoiceId])
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  invoiceId       String
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id])
+  amount          Decimal  @db.Decimal(14, 2)
+  method          String?
+  reference       String?
+  verifiedById    String?  // only an authorized user may verify — enforced in code
+  receivedAt      DateTime @default(now())
+
+  @@index([invoiceId])
+}
+
+model CreditNote {
+  id         String   @id @default(cuid())
+  invoiceId  String
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  amount     Decimal  @db.Decimal(14, 2)
+  reason     String
+  issuedAt   DateTime @default(now())
+
+  @@index([invoiceId])
+}
+
+// ---------- Supplier / material records only (Decision #7 — no ledger yet) ----------
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  contact   String?
+  createdAt DateTime @default(now())
+
+  materials RawMaterial[]
+}
+
+model RawMaterial {
+  id         String   @id @default(cuid())
+  name       String
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
+  defaultUnit String
+
+  ingredientLines IngredientLine[]
+
+  @@index([supplierId])
+}
+
+// ---------- Governance ----------
+
+// Append-only by convention: application code must never expose an
+// update/delete route for this model (baseline §10).
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      User     @relation("AuditActor", fields: [actorId], references: [id])
+  action     String
+  targetType String
+  targetId   String
+  before     Json?
+  after      Json?
+  createdAt  DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([actorId])
+}
