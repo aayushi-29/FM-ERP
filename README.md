@@ -57,7 +57,7 @@ around existing code:
 1. **Project scaffold** — done. Next.js/TypeScript/Prisma wiring, no secrets committed.
 2. **Database schema & migrations** — done. `prisma/schema.prisma` encodes the confirmed decisions (roles, formulation versioning, decimal money, deferred inventory).
 3. **Auth & server-side RBAC** — done for email/password. `lib/auth/` has password hashing, DB-backed sessions (revocable — Decision #9), and `requireUser`/`requireRole`/`assertProjectAccess` helpers every route and page must call explicitly (no implicit protection via folder nesting). SSO/OAuth (Google/Microsoft for staff) is a planned follow-on, not built yet — the `Session` model and cookie-based approach were chosen so adding an OAuth provider later doesn't require a redesign.
-4. **Core module APIs**, in dependency order: **Users → Clients/CRM** (done) → Projects/Tasks → NPD/Formulations/Trials → Documents → Costing/Invoices. Each module ships with its own permission and integrity tests — see "Users & CRM, as built" below for what's covered so far and what's intentionally deferred.
+4. **Core module APIs**, in dependency order: **Users → Clients/CRM → Projects/Tasks** (done) → NPD/Formulations/Trials → Documents → Costing/Invoices. Each module ships with its own permission and integrity tests — see "Users & CRM, as built" and "Projects, Tasks & Milestones, as built" below for what's covered so far and what's intentionally deferred.
 5. **Role dashboards & UI** — built against the real APIs above, in plain language for non-technical users.
 6. **Audit trail & test suite** — audit logging wired across sensitive actions; cross-client, assignment-boundary, and cost/invoice tests from the baseline's acceptance criteria.
 
@@ -89,6 +89,34 @@ around existing code:
   database transaction as the change itself (baseline §7: operations that
   must succeed or fail together use one transaction) — not as a
   best-effort afterthought.
+
+## Projects, Tasks & Milestones, as built
+
+- **Projects** (`/projects`, `app/api/projects`): Admin-only creation,
+  which also creates the lead's `ProjectAssignment` row in the same
+  transaction — that row, not the `leadId` field, is what actually grants
+  access, so the two can't drift apart. A Client's API response uses a
+  different, narrower shape (`CLIENT_SAFE_PROJECT_SELECT` in
+  `lib/projects/scope.ts`) rather than the same payload with fields
+  hidden client-side — no internal scope notes, no task list.
+- **Tasks**: Admin/Project Lead manage them fully. An NPD Executive can
+  only move the status of a task assigned to *them*, enforced server-side
+  (not just absent from their UI). Client has no access to tasks at all —
+  the baseline's matrix gives them "approved fields" on projects, and
+  tasks aren't one.
+- **Milestones** are the one place the schema's status enum alone doesn't
+  say who may move it, so `app/api/milestones/[id]/route.ts` enforces
+  three separate transition rights: a Project Lead can edit and submit a
+  `PENDING` milestone for approval but can't self-approve; a Client can
+  decide a `SUBMITTED` milestone for their own org's project but can't
+  touch a `PENDING` one; Admin can override any status at any time. Every
+  client decision and admin override writes to `AuditLog`; routine
+  creates/status changes go to the lighter `ProjectActivity` feed instead
+  (`lib/projects/activity.ts`) so the audit log doesn't fill with
+  task-dragging noise.
+- **Leads → client conversion** (baseline §6.1) is still not built — it
+  creates a Project, so it depended on this module existing first. It's
+  the natural next small piece before NPD/Formulations.
 
 ## Auth, as built
 
