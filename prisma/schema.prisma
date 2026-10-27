@@ -51,8 +51,27 @@ model User {
   approvals          Approval[]        @relation("Approver")
   documentsUploaded  Document[]        @relation("DocumentUploader")
   auditEntries       AuditLog[]        @relation("AuditActor")
+  sessions           Session[]
 
   @@index([clientOrgId])
+}
+
+// Decision (28 Oct 2026): email + password for the MVP. DB-backed sessions
+// (not stateless JWTs) so an offboarded user's access can be revoked
+// immediately by deleting their rows here, per Decision #9. tokenHash never
+// stores the raw session token — only its hash, so a DB read alone can't
+// forge a session. SSO/OAuth (Google/Microsoft for staff) is a planned
+// follow-on, not built now — see docs/decisions.md.
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String   @unique
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model ClientOrganization {
