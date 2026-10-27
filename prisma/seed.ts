@@ -10,7 +10,7 @@ import { hashPassword, isPasswordStrongEnough } from "../lib/auth/password";
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = process.env.SEED_ADMIN_EMAIL;
+  const email = process.env.SEED_ADMIN_EMAIL?.toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD;
   const name = process.env.SEED_ADMIN_NAME ?? "Admin";
 

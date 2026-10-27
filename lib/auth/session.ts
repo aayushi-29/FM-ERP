@@ -73,14 +73,21 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     include: { user: true },
   });
 
-  if (!session || session.expiresAt < new Date() || !session.user.active) {
+  if (!session) return null;
+
+  if (session.expiresAt < new Date() || !session.user.active) {
+    // Prune it now rather than leaving dead rows — an inactive user's old
+    // sessions shouldn't just sit there unreadable-but-present.
+    await prisma.session.delete({ where: { id: session.id } }).catch(() => {});
     return null;
   }
 
-  // Sliding expiry: touch lastSeenAt without extending expiresAt itself —
+  // Sliding visibility: touch lastSeenAt without extending expiresAt itself —
   // a 12h hard session life is a deliberate choice, not a bug, until Food
-  // Monk confirms a different policy.
-  void prisma.session
+  // Monk confirms a different policy. Awaited (not fire-and-forget): a
+  // serverless function can be frozen the instant the response is sent, so
+  // an un-awaited write here would be unreliable.
+  await prisma.session
     .update({ where: { id: session.id }, data: { lastSeenAt: new Date() } })
     .catch(() => {
       /* best-effort — a failed touch shouldn't fail the request */
