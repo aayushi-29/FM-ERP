@@ -393,8 +393,18 @@ li:last-child {
   color: var(--fm-text-muted);
 }
 
+/* Every page's top-level <main> centers itself with breathing room on
+   both sides, even on pages not yet individually rebuilt with the Shell —
+   plain block elements default to flush-left, which is what was pushing
+   content into the left edge with the rest of a wide viewport empty. An
+   inline maxWidth on a given page (set per-page, e.g. a narrow form) still
+   wins over this max-width; only the centering and base padding are new. */
 main {
   font-family: var(--font-body);
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 20px 64px;
+  width: 100%;
 }
 
 /* ---------- App shell (nav + page frame) ---------- */
