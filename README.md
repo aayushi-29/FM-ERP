@@ -554,34 +554,44 @@ around existing code:
   precision loss either way. Every dollar/rupee amount posted to these routes is
   still validated as a plain decimal string first, same as NPD's
   ingredient quantities.
-- **Migrations still aren't committed — confirmed blocked from this sandbox,
-  needs one run on your own machine.** No `prisma/migrations/` folder has
-  ever been committed to this repo; every schema change so far (NPD,
-  Documents, Costing & Invoicing, now Leads) has relied on whoever's
-  running `prisma migrate dev` locally, with no shared history. Checked
-  again on 28 Oct 2026: `npx prisma -v` in this sandbox fails outright —
-  `curl -sS "$HTTPS_PROXY/__agentproxy/status"` shows the sandbox's own
-  network policy returning a flat `403` on every `CONNECT` to
-  `binaries.prisma.sh`, not a timeout or a flaky retry — so there is no
-  way to generate or even validate a migration from here; the Prisma CLI
-  needs its schema-engine binary from that host for every one of
-  `migrate dev` / `migrate diff` / `db push`, with no pure-JS fallback.
-  Hand-writing a `prisma/migrations/` SQL file to work around that was
-  considered and rejected: Prisma's migration history is checksum-verified
-  (`migration_lock.toml` + each migration's checksum), so a hand-authored
-  file that doesn't byte-for-byte match what the schema engine would have
-  produced risks `migrate dev` on a real machine silently treating a wrong
-  migration as "already applied," which is worse than no history at all.
-  **One-time fix, run locally where Prisma can reach the real engine:**
+- **Migrations: a hand-written initial migration is now committed**
+  (`prisma/migrations/20261028000000_init/`), because the Prisma CLI
+  itself cannot run in this sandbox under any version — tested 5.22
+  (the pinned version), 6, and 7, and every one fails even on a bare
+  `prisma -v`: `curl -sS "$HTTPS_PROXY/__agentproxy/status"` shows this
+  sandbox's network policy returning a flat `403` on every `CONNECT` to
+  `binaries.prisma.sh`, which every version needs to download its native
+  schema-engine binary from, with no pure-JS/WASM fallback available for
+  that specific engine in any of these versions. Hand-writing the SQL
+  instead of waiting was a deliberate call, but it wasn't done blind:
+  this sandbox happens to have PostgreSQL 16 already installed
+  independent of Prisma, so the hand-written SQL was actually applied to
+  a throwaway local database — every statement ran with zero errors, the
+  resulting schema was cross-checked (28 tables, 12 enums, 43 foreign
+  keys, 63 indexes, spot-checked column-by-column against
+  `schema.prisma` for `CostSheet` and `Invoice`), and a real round-trip
+  insert plus two deliberate constraint violations (a duplicate
+  `ProjectAssignment`, a `Task` with a bad `projectId`) all behaved
+  correctly. The scratch database was dropped afterward. Full detail and
+  caveats are in the migration file's own header comment — in particular,
+  this only proves the **SQL** is correct; it does not prove Prisma's own
+  schema engine will accept this as the start of its migration history
+  without any follow-up, since that check itself needs the blocked
+  engine.
+  **Still recommended, the first time you're somewhere `binaries.prisma.sh`
+  is reachable:**
   ```
   npm run prisma:migrate
   ```
-  (prompts for a name the first time — `init` is fine) against a real
-  Postgres instance per `DATABASE_URL`/`DIRECT_URL` in your `.env`. Commit
-  the `prisma/migrations/` folder it generates. From then on, every
-  environment (including Windows/production) runs
-  `npx prisma migrate deploy` against that same committed history instead
-  of each one inventing its own via `migrate dev`.
+  against a real Postgres instance per `DATABASE_URL`/`DIRECT_URL` in your
+  `.env` — either on an empty database (to get Prisma's own checksummed
+  migration in place of this hand-written one), or on a database this
+  file was already applied to (Prisma will diff it against
+  `schema.prisma` and generate a small follow-up migration for anything
+  it finds different — expected, normal behavior). Either way, from then
+  on every environment (including Windows/production) runs
+  `npx prisma migrate deploy` against the committed history instead of
+  each one inventing its own via `migrate dev`.
 
 ## Auth, as built
 
