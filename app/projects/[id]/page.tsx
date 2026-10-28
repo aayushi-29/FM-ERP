@@ -36,6 +36,9 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
 
         <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Documents</h2>
         <Link href={`/projects/${project.id}/documents`}>Open documents →</Link>
+
+        <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Invoices</h2>
+        <Link href={`/projects/${project.id}/costing`}>Open invoices →</Link>
       </main>
     );
   }
@@ -121,6 +124,16 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         Contracts, technical specs, trial records, and anything shared with the client.
       </p>
       <Link href={`/projects/${project.id}/documents`}>Open documents →</Link>
+
+      {user.role !== "NPD_EXECUTIVE" ? (
+        <>
+          <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Costing &amp; Invoicing</h2>
+          <p style={{ color: "#555", fontSize: ".9rem" }}>
+            Cost sheets, expenses, and invoices for this project.
+          </p>
+          <Link href={`/projects/${project.id}/costing`}>Open costing &amp; invoicing →</Link>
+        </>
+      ) : null}
     </main>
   );
 }

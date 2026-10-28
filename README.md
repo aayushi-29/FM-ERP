@@ -275,7 +275,7 @@ around existing code:
 1. **Project scaffold** — done. Next.js/TypeScript/Prisma wiring, no secrets committed.
 2. **Database schema & migrations** — done. `prisma/schema.prisma` encodes the confirmed decisions (roles, formulation versioning, decimal money, deferred inventory).
 3. **Auth & server-side RBAC** — done for email/password. `lib/auth/` has password hashing, DB-backed sessions (revocable — Decision #9), and `requireUser`/`requireRole`/`assertProjectAccess` helpers every route and page must call explicitly (no implicit protection via folder nesting). SSO/OAuth (Google/Microsoft for staff) is a planned follow-on, not built yet — the `Session` model and cookie-based approach were chosen so adding an OAuth provider later doesn't require a redesign.
-4. **Core module APIs**, in dependency order: **Users → Clients/CRM → Projects/Tasks → NPD/Formulations/Trials → Documents** (done) → Costing/Invoices. Each module ships with its own permission and integrity tests — see "Users & CRM, as built", "Projects, Tasks & Milestones, as built", "NPD / Formulations / Trials, as built", and "Documents, as built" below for what's covered so far and what's intentionally deferred.
+4. **Core module APIs**, in dependency order: **Users → Clients/CRM → Projects/Tasks → NPD/Formulations/Trials → Documents → Costing/Invoices** (all done). Each module ships with its own permission and integrity tests — see "Users & CRM, as built", "Projects, Tasks & Milestones, as built", "NPD / Formulations / Trials, as built", "Documents, as built", and "Costing & Invoicing, as built" below for what's covered so far and what's intentionally deferred.
 5. **Role dashboards & UI** — built against the real APIs above, in plain language for non-technical users.
 6. **Audit trail & test suite** — audit logging wired across sensitive actions; cross-client, assignment-boundary, and cost/invoice tests from the baseline's acceptance criteria.
 
@@ -469,6 +469,82 @@ around existing code:
   schema but has no API/UI yet — trials currently record free-text
   `results`/`parameters` only. Deferred rather than built ahead of real
   usage; a natural small follow-up once this module is in use.
+
+## Costing & Invoicing, as built
+
+- **This module needs the accountant's sign-off before it handles real
+  numbers** — Decision #4 (costing formula) and Decision #6 (GST/tax,
+  invoice numbering) are both explicitly unconfirmed in
+  `docs/decisions.md`. What's built is the *recording structure and
+  arithmetic plumbing* — every input the formula touches, stored as its
+  own column, with the actual formula and numbering scheme isolated in
+  one function each so the real ones drop in without touching a route.
+  Treat every number this module currently produces as a placeholder for
+  testing the workflow, not a real quote.
+- **Cost sheets** (`/projects/:id/costing`, `app/api/projects/[id]/cost-sheets`):
+  Admin-only to create (baseline §4 Costing row: "Manage" is Admin's row
+  alone — Project Lead is read-only, NPD Executive and Client have none at
+  all). The formula — `lib/costing/compute.ts` — is one specific,
+  documented reading of Decision #4's text ("ingredient cost ×
+  yield/wastage + packaging/processing/labour/testing/overhead"); the
+  comment at the top of that file spells out exactly which arithmetic was
+  chosen and why, so whoever confirms the real formula with the
+  accountant can see precisely what to change. `costPerBatch`/`costPerUnit`
+  are always computed server-side from the stored inputs — never accepted
+  from the client — and a recalculation creates a new row
+  (`supersedesId`) rather than overwriting the one a client may have
+  already seen a price derived from.
+  **Schema note**: there's no reliable per-unit raw-material price feed in
+  this MVP (Decision #7 defers the inventory/pricing ledger), so
+  `ingredientCost` is entered explicitly on each cost sheet rather than
+  auto-summed from the recipe. `RawMaterial.defaultCostPerUnit` exists only
+  as an optional reference value a future UI could use to *suggest* a
+  starting number — it's never applied automatically.
+- **Invoices** (`/invoices/:id`, `app/api/projects/[id]/invoices`):
+  Admin-only to create or send; Project Lead and Client are read-only
+  (Client additionally can't see a `DRAFT` invoice at all — an
+  interpretation flag, since the matrix says "own invoices" without
+  saying whether that includes drafts; see the comment on
+  `isInvoiceVisibleToClient` in `lib/costing/scope.ts` to change it).
+  `subtotal` and `amount` are always computed server-side from the
+  posted lines plus an explicitly-entered `taxAmount` — Decision #6:
+  "tax rules follow the accountant, never hard-coded," so there is no GST%
+  applied anywhere in code. `invoiceNumber` comes from
+  `lib/invoices/numbering.ts`, a placeholder sequence
+  (`FM-<year>-<seq>`) that exists only to satisfy the one rule every real
+  numbering scheme will also need (unique, assigned once, never reused) —
+  the real scheme is Decision #6's to confirm.
+- **Payments and credit notes**: Admin-only to record. An invoice's
+  `status` (`SENT` → `PARTIALLY_PAID` → `PAID`) is always *derived* from
+  summing its payments and credit notes against its amount — there is no
+  route that sets `PARTIALLY_PAID`/`PAID` directly, so the status can't
+  drift from the numbers that back it. "Recording" a payment and
+  "verifying" it are two separate steps/routes
+  (`app/api/invoices/[id]/payments` vs. `app/api/payments/[id]/verify`,
+  Admin-only both) — a typo'd bank-transfer entry can sit as
+  recorded-but-unverified rather than being trusted the instant it's
+  typed in.
+- **Expenses** (`ProjectExpense`): folded into the Costing permission row
+  (the baseline has no separate "Expenses" line) — Admin creates, Admin
+  and Project Lead read.
+- **All money math uses `decimal.js`** (imported directly, not via
+  `Prisma.Decimal`) — chosen specifically so this module's types resolve
+  correctly even against this sandbox's stub Prisma client (see the "Note
+  on this sandbox" earlier in this file); on your machine, with a real
+  generated client, Prisma's own Decimal fields convert into it with no
+  precision loss either way. Every dollar/rupee amount posted to these routes is
+  still validated as a plain decimal string first, same as NPD's
+  ingredient quantities.
+- **Migrations**: this schema change (CostSheet's new fields, the
+  `Invoice`/`Payment`/`CreditNote`/`ProjectExpense` author relations,
+  `CostPriceBasis`/`InvoiceStatus` enums) hasn't been applied to any
+  database yet — no `prisma/migrations` folder has ever been committed to
+  this repo; every schema change so far has relied on whoever's running
+  `prisma migrate dev` locally. That's a gap worth closing: **the next
+  person to run `prisma migrate dev` should commit the generated
+  `prisma/migrations/` folder** so Windows/production can run
+  `prisma migrate deploy` against the same history instead of each
+  environment inventing its own.
 
 ## Auth, as built
 

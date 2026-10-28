@@ -56,6 +56,12 @@ model User {
   formulationEdits   FormulationVersion[] @relation("FormulationAuthor")
   approvals          Approval[]        @relation("Approver")
   documentsUploaded  Document[]        @relation("DocumentUploader")
+  costSheetsPrepared CostSheet[]       @relation("CostSheetAuthor")
+  invoicesCreated    Invoice[]         @relation("InvoiceAuthor")
+  paymentsRecorded   Payment[]         @relation("PaymentRecorder")
+  paymentsVerified   Payment[]         @relation("PaymentVerifier")
+  creditNotesIssued  CreditNote[]      @relation("CreditNoteIssuer")
+  expensesLogged     ProjectExpense[]  @relation("ExpenseAuthor")
   auditEntries       AuditLog[]        @relation("AuditActor")
   sessions           Session[]
 
@@ -410,16 +416,37 @@ model DocumentVersion {
 
 // ---------- Commercial: costing, invoicing, payments ----------
 
-// Decision #4: configurable costing — this snapshot records the inputs and
-// assumptions used, not just a total, so a historical estimate stays
-// explainable. All money/quantity fields are Decimal — never Float.
+// Decision #4: "Ingredient cost × yield/wastage + packaging/processing/
+// labour/testing/overhead; estimate vs. actual kept separate." The exact
+// arithmetic (how yield% and wastage% combine with ingredient cost) and
+// the exact rates are NOT confirmed — Decision #4 is explicitly flagged in
+// docs/decisions.md as needing the accountant's sign-off before real
+// numbers go live. What's built here is the recording structure: every
+// input the formula touches is its own column, so a historical number
+// stays explainable, and a recalculation creates a new row rather than
+// overwriting one (never lose the number a client already saw).
+enum CostPriceBasis {
+  ESTIMATE
+  SUPPLIER_QUOTE
+  ACTUAL
+}
+
 model CostSheet {
   id                   String   @id @default(cuid())
   projectId            String
   project              Project  @relation(fields: [projectId], references: [id])
   formulationVersionId String
   formulationVersion   FormulationVersion @relation(fields: [formulationVersionId], references: [id])
-  priceBasis           String   // "estimate" | "supplier_quote" | "actual" — confirm enum with Food Monk
+  createdById          String
+  createdBy            User     @relation("CostSheetAuthor", fields: [createdById], references: [id])
+  priceBasis           CostPriceBasis
+  // Ingredient cost is entered explicitly here, not auto-derived from
+  // RawMaterial pricing — there's no reliable per-unit material price
+  // feed in the MVP (Decision #7 defers the inventory/pricing ledger).
+  // RawMaterial.defaultCostPerUnit (below) exists only as an optional
+  // *suggestion* the UI can total up from the recipe; this field is what's
+  // actually recorded, and recording it is what makes it auditable.
+  ingredientCost       Decimal  @db.Decimal(14, 2)
   yieldPercent         Decimal  @db.Decimal(6, 3)
   wastagePercent       Decimal  @db.Decimal(6, 3)
   packagingCost        Decimal  @db.Decimal(14, 2)
@@ -427,9 +454,11 @@ model CostSheet {
   labourCost           Decimal  @db.Decimal(14, 2)
   testingCost          Decimal  @db.Decimal(14, 2)
   overheadCost         Decimal  @db.Decimal(14, 2)
-  costPerBatch         Decimal  @db.Decimal(14, 2)
-  costPerUnit          Decimal  @db.Decimal(14, 4)
+  batchSizeUnits       Decimal  @db.Decimal(14, 4) // units produced per batch — needed to go from cost-per-batch to cost-per-unit
+  costPerBatch         Decimal  @db.Decimal(14, 2) // computed server-side from the inputs above, never trusted from the client
+  costPerUnit          Decimal  @db.Decimal(14, 4) // = costPerBatch / batchSizeUnits
   currency             String   @default("INR")
+  notes                String?  // free-text assumptions — e.g. which supplier quote, what's excluded
   supersedesId         String?  // a recalculation creates a new row and points here — never overwrites
   supersedes           CostSheet? @relation("CostSheetHistory", fields: [supersedesId], references: [id])
   supersededBy         CostSheet[] @relation("CostSheetHistory")
@@ -443,6 +472,8 @@ model ProjectExpense {
   id          String   @id @default(cuid())
   projectId   String
   project     Project  @relation(fields: [projectId], references: [id])
+  createdById String
+  createdBy   User     @relation("ExpenseAuthor", fields: [createdById], references: [id])
   description String
   amount      Decimal  @db.Decimal(14, 2)
   currency    String   @default("INR")
@@ -451,18 +482,45 @@ model ProjectExpense {
   @@index([projectId])
 }
 
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
 // Decision #5: milestones are contract-specific and configurable — this is
-// NOT a fixed 60/25/15 split, it's a per-invoice configurable row.
+// NOT a fixed 60/25/15 split, it's a per-invoice configurable row
+// (milestoneLabel is free text, not a foreign key to the Milestone model —
+// an invoice's payment milestone and a project's delivery Milestone are
+// related concepts but not forced to be the same record, since contracts
+// don't always split the two the same way).
 model Invoice {
   id             String   @id @default(cuid())
   projectId      String
   project        Project  @relation(fields: [projectId], references: [id])
-  invoiceNumber  String   @unique // numbering scheme TBD — Decision #6, accountant to confirm
+  createdById    String
+  createdBy      User     @relation("InvoiceAuthor", fields: [createdById], references: [id])
+  // Numbering scheme is TBD — Decision #6, accountant to confirm before
+  // real invoices are sent. What's enforced today is only the mechanical
+  // rule every scheme will need: unique, assigned once, never reused (see
+  // lib/invoices/numbering.ts for the placeholder sequence this generates
+  // until a real policy is confirmed).
+  invoiceNumber  String   @unique
   milestoneLabel String?
-  amount         Decimal  @db.Decimal(14, 2)
+  // Both stored explicitly, never computed by applying a hardcoded GST
+  // rate — Decision #6: "tax rules follow the accountant, never
+  // hard-coded." subtotal is the sum of this invoice's lines at creation
+  // time (recorded, not re-derived later, so an invoice stays explainable
+  // even if lines were somehow edited afterward — though in practice
+  // lines are also append-only, see InvoiceLine).
+  subtotal       Decimal  @db.Decimal(14, 2)
+  taxAmount      Decimal  @db.Decimal(14, 2) @default(0)
+  amount         Decimal  @db.Decimal(14, 2) // = subtotal + taxAmount, computed server-side
   currency       String   @default("INR")
   dueDate        DateTime?
-  status         String   @default("DRAFT") // DRAFT | SENT | PARTIALLY_PAID | PAID | CANCELLED
+  status         InvoiceStatus @default(DRAFT)
   createdAt      DateTime @default(now())
 
   lines    InvoiceLine[]
@@ -489,7 +547,10 @@ model Payment {
   amount          Decimal  @db.Decimal(14, 2)
   method          String?
   reference       String?
-  verifiedById    String?  // only an authorized user may verify — enforced in code
+  recordedById    String
+  recordedBy      User     @relation("PaymentRecorder", fields: [recordedById], references: [id])
+  verifiedById    String?  // only Admin may verify (enforced in code) — a recorded-but-unverified payment is still visible, just flagged
+  verifiedBy      User?    @relation("PaymentVerifier", fields: [verifiedById], references: [id])
   receivedAt      DateTime @default(now())
 
   @@index([invoiceId])
@@ -499,6 +560,8 @@ model CreditNote {
   id         String   @id @default(cuid())
   invoiceId  String
   invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  issuedById String
+  issuedBy   User     @relation("CreditNoteIssuer", fields: [issuedById], references: [id])
   amount     Decimal  @db.Decimal(14, 2)
   reason     String
   issuedAt   DateTime @default(now())
@@ -523,6 +586,13 @@ model RawMaterial {
   supplierId String?
   supplier   Supplier? @relation(fields: [supplierId], references: [id])
   defaultUnit String
+  // Optional reference price, used only to *suggest* a cost-sheet
+  // ingredient-cost total (quantity × this, summed across a recipe's
+  // lines) — never applied automatically. No price history is kept here
+  // (that's a ledger, deferred with inventory per Decision #7); whoever
+  // prepares a CostSheet confirms or overrides the suggestion, and only
+  // the confirmed number on the CostSheet itself is the record.
+  defaultCostPerUnit Decimal? @db.Decimal(14, 4)
 
   ingredientLines IngredientLine[]
 
