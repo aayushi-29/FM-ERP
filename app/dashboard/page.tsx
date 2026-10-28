@@ -8,6 +8,7 @@ import {
   getClientDashboard,
 } from "@/lib/dashboard/queries";
 import { Shell } from "@/app/components/shell";
+import { StatValue } from "@/app/components/stat-value";
 
 // Role-specific landing view (baseline §11). Each branch below is a plain
 // read-only summary built from the already-scoped queries in
@@ -17,6 +18,15 @@ import { Shell } from "@/app/components/shell";
 
 function fmtDate(d: Date | null) {
   return d ? new Date(d).toLocaleDateString() : "—";
+}
+
+function timeOfDayGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 5) return "Working late";
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  if (hour < 21) return "Good evening";
+  return "Working late";
 }
 
 const ROLE_WELCOME: Record<SessionUser["role"], string> = {
@@ -32,7 +42,9 @@ export default async function DashboardPage() {
   return (
     <Shell user={user}>
       <div className="fm-page-head">
-        <h1>Welcome, {user.name.split(" ")[0]}</h1>
+        <h1>
+          {timeOfDayGreeting()}, {user.name.split(" ")[0]}
+        </h1>
         <p className="fm-muted">{ROLE_WELCOME[user.role]}</p>
       </div>
 
@@ -373,7 +385,9 @@ async function ClientSection({ user }: { user: SessionUser }) {
 function Stat({ label, value, warn }: { label: string; value: number; warn?: boolean }) {
   return (
     <div className={`glass glass-sm fm-stat${warn ? " fm-stat-warn" : ""}`}>
-      <div className="fm-stat-value">{value}</div>
+      <div className="fm-stat-value">
+        <StatValue value={value} />
+      </div>
       <div className="fm-stat-label">{label}</div>
     </div>
   );

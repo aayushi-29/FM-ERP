@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
+import { GlassCursorEffect } from "./components/glass-cursor-effect";
+import { CommandPalette } from "./components/command-palette";
 
 export const metadata: Metadata = {
   title: "Food Monk ERP",
@@ -20,8 +22,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
-        <div className="fm-backdrop" aria-hidden="true" />
+        <div className="fm-backdrop" aria-hidden="true">
+          <div className="fm-backdrop-blob-3" />
+        </div>
+        <GlassCursorEffect />
         {children}
+        <CommandPalette />
       </body>
     </html>
   );

@@ -6,16 +6,24 @@
    ============================================================ */
 
 :root {
-  /* Brand palette */
-  --fm-espresso: #3a2415;
-  --fm-espresso-ink: #241509;
+  /* Brand palette — espresso/terracotta/gold/cream from the Food Monk
+     badge logo, deepened and extended with a moss-olive accent and a
+     near-black ink, matched to the reference mood board (deep chocolate
+     panels, warm cream surfaces, olive accent pills, mustard gold
+     details, near-black for high-contrast chips). */
+  --fm-espresso: #2d1e12;
+  --fm-espresso-ink: #1b1109;
   --fm-terracotta: #c44a1f;
   --fm-terracotta-deep: #a53a16;
-  --fm-gold: #e3a53d;
-  --fm-gold-soft: #f0c878;
-  --fm-cream: #faf3e7;
-  --fm-cream-deep: #f1e4cd;
-  --fm-slate: #7a6a5c;
+  --fm-gold: #d4a62e;
+  --fm-gold-soft: #e8c774;
+  --fm-cream: #f5ead9;
+  --fm-cream-deep: #ead9bb;
+  --fm-olive: #545c38;
+  --fm-olive-deep: #3b4127;
+  --fm-olive-soft: #8b9468;
+  --fm-ink-black: #18120d;
+  --fm-slate: #8a7866;
 
   /* Semantic */
   --fm-danger: #b4312a;
@@ -80,6 +88,21 @@
   background: rgba(255, 255, 255, 0.13);
 }
 
+/* Registered so --mx/--my can be transitioned smoothly (a plain custom
+   property can't be animated by the browser without this). Used by the
+   cursor-follow sheen on .glass panels below. */
+@property --mx {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 50%;
+}
+
+@property --my {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 35%;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -134,13 +157,36 @@ body {
   bottom: -20vw;
   right: -16vw;
   background: radial-gradient(circle at 60% 60%, var(--fm-terracotta), var(--fm-terracotta-deep) 55%, transparent 75%);
+  opacity: 0.45;
   animation-delay: -35s;
   animation-direction: alternate-reverse;
 }
 
+.fm-backdrop-blob-3 {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.35;
+  width: 46vw;
+  height: 46vw;
+  top: 30vh;
+  left: 32vw;
+  background: radial-gradient(circle at 50% 50%, var(--fm-olive-soft), var(--fm-olive) 60%, transparent 75%);
+  animation: fm-drift 85s ease-in-out infinite alternate;
+  animation-delay: -20s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fm-backdrop-blob-3 {
+    animation: none;
+  }
+}
+
 :root[data-theme="dark"] .fm-backdrop::before,
-:root[data-theme="dark"] .fm-backdrop::after {
-  opacity: 0.3;
+:root[data-theme="dark"] .fm-backdrop::after,
+:root[data-theme="dark"] .fm-backdrop-blob-3 {
+  opacity: 0.22;
 }
 
 @keyframes fm-drift {
@@ -194,8 +240,16 @@ code {
   font-size: 0.9em;
 }
 
-/* ---------- Liquid glass primitives ---------- */
+/* ---------- Liquid glass primitives ----------
+   Real "liquid glass" reads as glass because it reacts to light — so
+   beyond the static top-edge highlight (::before), every .glass panel
+   carries a second layer (::after) that catches a soft sheen under the
+   cursor. --mx/--my default to a fixed point (graceful no-JS state) and
+   are updated continuously by GlassCursorEffect on pointermove; the
+   :hover reveal needs no JS at all. */
 .glass {
+  --mx: 50%;
+  --my: 35%;
   background: var(--glass-fill);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
@@ -203,6 +257,7 @@ code {
   border-radius: var(--radius-lg);
   box-shadow: var(--glass-shadow);
   position: relative;
+  transition: --mx 0.5s ease, --my 0.5s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .glass::before {
@@ -218,6 +273,33 @@ code {
   mask-composite: exclude;
   pointer-events: none;
   opacity: 0.8;
+}
+
+.glass::after {
+  /* cursor-follow sheen */
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(480px circle at var(--mx) var(--my), rgba(255, 255, 255, 0.5), transparent 60%);
+  transition: opacity 0.35s ease;
+}
+
+.glass:hover::after,
+.glass:focus-within::after {
+  opacity: 1;
+}
+
+:root[data-theme="dark"] .glass::after {
+  background: radial-gradient(480px circle at var(--mx) var(--my), rgba(255, 229, 196, 0.16), transparent 60%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass {
+    transition: box-shadow 0.2s ease;
+  }
 }
 
 .glass-strong {
@@ -384,8 +466,120 @@ li:last-child {
 }
 
 .fm-badge-gold {
-  background: rgba(227, 165, 61, 0.22);
+  background: rgba(212, 166, 46, 0.24);
   color: var(--fm-terracotta-deep);
+}
+
+.fm-badge-olive {
+  background: rgba(84, 92, 56, 0.18);
+  color: var(--fm-olive-deep);
+}
+
+.fm-badge-ink {
+  background: var(--fm-ink-black);
+  color: var(--fm-cream);
+}
+
+/* ---------- Command palette ---------- */
+.fm-cmdk-trigger {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 50;
+  padding: 9px 14px;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: var(--fm-text-muted);
+  gap: 2px;
+}
+
+.fm-cmdk-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(27, 17, 9, 0.35);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 14vh 20px 20px;
+}
+
+.fm-cmdk {
+  width: 100%;
+  max-width: 520px;
+  padding: 10px;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.fm-cmdk-input {
+  border: none;
+  background: transparent;
+  font-size: 1.05rem;
+  padding: 12px 14px;
+  width: 100%;
+}
+
+.fm-cmdk-input:focus {
+  background: transparent;
+  outline: none;
+}
+
+.fm-cmdk-list {
+  overflow-y: auto;
+  margin-top: 4px;
+  border-top: 1px solid var(--glass-border);
+  padding-top: 6px;
+}
+
+.fm-cmdk-list li {
+  padding: 0;
+  border: none;
+}
+
+.fm-cmdk-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  color: var(--fm-text);
+  box-shadow: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  text-align: left;
+}
+
+.fm-cmdk-item:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.fm-cmdk-item-active {
+  background: rgba(196, 74, 31, 0.14);
+  color: var(--fm-terracotta-deep);
+}
+
+.fm-cmdk-hint {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--fm-text-muted);
+}
+
+.fm-cmdk-empty {
+  padding: 16px 12px;
+  color: var(--fm-text-muted);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 600px) {
+  .fm-cmdk-trigger {
+    display: none;
+  }
 }
 
 /* ---------- Utility ---------- */
@@ -530,6 +724,32 @@ main {
   display: flex;
   flex-direction: column;
   align-items: center;
+  overflow: hidden;
+}
+
+.fm-hero-linework {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.fm-hero-linework circle,
+.fm-hero-linework path {
+  fill: none;
+  stroke: var(--fm-espresso);
+  stroke-width: 1;
+  opacity: 0.1;
+}
+
+.fm-hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .fm-landing-logo {
@@ -553,10 +773,33 @@ main {
 
 .fm-landing-actions {
   margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
 }
 
 .fm-landing-actions a.fm-btn {
-  display: inline-block;
+  display: inline-flex;
+}
+
+.fm-landing-cmdk-hint {
+  font-size: 0.78rem;
+  color: var(--fm-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fm-landing-cmdk-hint kbd {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--fm-cream-deep);
+  border: 1px solid var(--glass-border);
+  border-radius: 5px;
+  padding: 1px 6px;
+  color: var(--fm-espresso);
 }
 
 .fm-landing-grid {
@@ -682,6 +925,7 @@ main {
   font-weight: 650;
   color: var(--fm-terracotta-deep);
   line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
 .fm-stat-warn .fm-stat-value {
