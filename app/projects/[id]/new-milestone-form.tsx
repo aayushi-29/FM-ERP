@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
-export function NewMilestoneForm({ projectId }: { projectId: string }) {
+export function NewMilestoneForm({ projectId, maxDueDate }: { projectId: string; maxDueDate?: string }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -42,8 +42,8 @@ export function NewMilestoneForm({ projectId }: { projectId: string }) {
         <input value={title} onChange={(e) => setTitle(e.target.value)} required style={{ display: "block", width: "100%", padding: 6 }} />
       </label>
       <label>
-        Due date
-        <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ display: "block", padding: 6 }} />
+        Due date{maxDueDate ? ` (by ${maxDueDate})` : ""}
+        <input type="date" value={dueDate} max={maxDueDate} onChange={(e) => setDueDate(e.target.value)} style={{ display: "block", padding: 6 }} />
       </label>
       <button type="submit" disabled={submitting}>{submitting ? "Adding…" : "Add milestone"}</button>
       {error ? <p role="alert" style={{ color: "#b00020", fontSize: ".85rem", width: "100%" }}>{error}</p> : null}

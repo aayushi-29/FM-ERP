@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 export function NewTaskForm({
   projectId,
   assignees,
+  maxDueDate,
 }: {
   projectId: string;
   assignees: { id: string; name: string }[];
+  maxDueDate?: string; // project's targetDate, "yyyy-mm-dd" — a UI hint only; the API enforces this
 }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
@@ -62,8 +64,8 @@ export function NewTaskForm({
         </select>
       </label>
       <label>
-        Due date
-        <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ display: "block", padding: 6 }} />
+        Due date{maxDueDate ? ` (by ${maxDueDate})` : ""}
+        <input type="date" value={dueDate} max={maxDueDate} onChange={(e) => setDueDate(e.target.value)} style={{ display: "block", padding: 6 }} />
       </label>
       <button type="submit" disabled={submitting}>{submitting ? "Adding…" : "Add task"}</button>
       {error ? <p role="alert" style={{ color: "#b00020", fontSize: ".85rem", width: "100%" }}>{error}</p> : null}

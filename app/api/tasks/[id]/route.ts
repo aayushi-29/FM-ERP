@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole, assertProjectAccess, ForbiddenError } from "@/lib/auth/rbac";
 import { logProjectActivity } from "@/lib/projects/activity";
+import { assertDueDateWithinProject } from "@/lib/projects/due-date";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse } from "@/lib/api/respond";
 
@@ -66,6 +67,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
           { status: 400 }
         );
       }
+    }
+
+    if (input.dueDate) {
+      await assertDueDateWithinProject(new Date(input.dueDate), task.projectId);
     }
 
     const updated = await prisma.$transaction(async (tx) => {

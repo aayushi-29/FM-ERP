@@ -335,6 +335,16 @@ around existing code:
 - **Leads → client conversion** (baseline §6.1) is still not built — it
   creates a Project, so it depended on this module existing first. It's
   the natural next small piece before NPD/Formulations.
+- **Due-date consistency**: a task or milestone's due date can't be set
+  after its project's `targetDate` — enforced server-side in
+  `lib/projects/due-date.ts`, called from both create and edit on tasks
+  and milestones, and from the project's own PATCH route in the other
+  direction (pulling `targetDate` earlier is rejected if a task or
+  milestone is already due after the new date). Found and fixed 28 Oct
+  2026 after a build-review pass surfaced it as a silent data-integrity
+  gap — the date pickers also show the limit as a `max` attribute, but
+  that's a convenience, not the enforcement; the API rejects it either
+  way. A project with no `targetDate` set has nothing to check against.
 
 ## NPD / Formulations / Trials, as built
 

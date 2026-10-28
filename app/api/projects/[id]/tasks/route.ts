@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole, assertProjectAccess } from "@/lib/auth/rbac";
 import { logProjectActivity } from "@/lib/projects/activity";
+import { assertDueDateWithinProject } from "@/lib/projects/due-date";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse } from "@/lib/api/respond";
 
@@ -76,6 +77,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
       if (!dependsOn || dependsOn.projectId !== params.id) {
         return NextResponse.json({ error: "dependsOnId must be a task in the same project" }, { status: 400 });
       }
+    }
+
+    if (input.dueDate) {
+      await assertDueDateWithinProject(new Date(input.dueDate), params.id);
     }
 
     const task = await prisma.$transaction(async (tx) => {

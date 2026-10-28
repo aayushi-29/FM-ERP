@@ -91,6 +91,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           <NewTaskForm
             projectId={project.id}
             assignees={project.assignments.map((a) => a.user)}
+            maxDueDate={project.targetDate ? project.targetDate.toISOString().slice(0, 10) : undefined}
           />
         </div>
       ) : null}
@@ -99,7 +100,10 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
       <MilestoneList milestones={project.milestones} role={user.role} />
       {canManage ? (
         <div style={{ marginTop: 10 }}>
-          <NewMilestoneForm projectId={project.id} />
+          <NewMilestoneForm
+            projectId={project.id}
+            maxDueDate={project.targetDate ? project.targetDate.toISOString().slice(0, 10) : undefined}
+          />
         </div>
       ) : null}
 

@@ -6,7 +6,7 @@ import { CLIENT_SAFE_PROJECT_SELECT } from "@/lib/projects/scope";
 import { logAudit } from "@/lib/audit";
 import { logProjectActivity } from "@/lib/projects/activity";
 import { isSameOrigin } from "@/lib/security/origin";
-import { errorResponse } from "@/lib/api/respond";
+import { errorResponse, ValidationError } from "@/lib/api/respond";
 
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   try {
@@ -64,6 +64,25 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     const existing = await prisma.project.findUnique({ where: { id: params.id } });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    // The reverse of the task/milestone-side check: pulling the project's
+    // own target date earlier can't be allowed to silently strand a task
+    // or milestone that's already due after it — that's the same
+    // inconsistency either direction, so it's rejected here too rather
+    // than only guarded against on creation.
+    if (input.targetDate) {
+      const newTarget = new Date(input.targetDate);
+      const [laterTask, laterMilestone] = await Promise.all([
+        prisma.task.findFirst({ where: { projectId: params.id, dueDate: { gt: newTarget } }, select: { title: true } }),
+        prisma.milestone.findFirst({ where: { projectId: params.id, dueDate: { gt: newTarget } }, select: { title: true } }),
+      ]);
+      const conflict = laterTask ?? laterMilestone;
+      if (conflict) {
+        throw new ValidationError(
+          `Can't set the target date before "${conflict.title}", which is already due after it`
+        );
+      }
+    }
 
     const updated = await prisma.$transaction(async (tx) => {
       const result = await tx.project.update({

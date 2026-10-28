@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole, assertProjectAccess } from "@/lib/auth/rbac";
 import { logProjectActivity } from "@/lib/projects/activity";
+import { assertDueDateWithinProject } from "@/lib/projects/due-date";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse } from "@/lib/api/respond";
 
@@ -43,6 +44,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     const json = await request.json().catch(() => null);
     const input = createMilestoneSchema.parse(json);
+
+    if (input.dueDate) {
+      await assertDueDateWithinProject(new Date(input.dueDate), params.id);
+    }
 
     const milestone = await prisma.$transaction(async (tx) => {
       const created = await tx.milestone.create({

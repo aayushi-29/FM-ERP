@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, assertProjectAccess, ForbiddenError } from "@/lib/auth/rbac";
 import { logAudit } from "@/lib/audit";
 import { logProjectActivity } from "@/lib/projects/activity";
+import { assertDueDateWithinProject } from "@/lib/projects/due-date";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse } from "@/lib/api/respond";
 
@@ -87,6 +88,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       }
       const input = leadEditSchema.parse(json);
 
+      if (input.dueDate) {
+        await assertDueDateWithinProject(new Date(input.dueDate), milestone.projectId);
+      }
+
       const updated = await prisma.$transaction(async (tx) => {
         const result = await tx.milestone.update({
           where: { id: params.id },
@@ -110,6 +115,11 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     // ADMIN override.
     const input = adminOverrideSchema.parse(json);
+
+    if (input.dueDate) {
+      await assertDueDateWithinProject(new Date(input.dueDate), milestone.projectId);
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
       const result = await tx.milestone.update({
         where: { id: params.id },
