@@ -4,9 +4,14 @@ Role-based ERP for Food Monk Innovations: client relationship management, projec
 and task management, new product development (formulations, trials), document
 management, and project-level costing/invoicing.
 
-**Status:** Auth, Users, Clients/CRM, and Projects/Tasks/Milestones are
-built. NPD/Formulations, Documents, and Costing/Invoices are not yet — see
-[Build order](#build-order) below.
+**Status:** Core MVP is built — Auth, Users, Clients/CRM, Projects/Tasks/
+Milestones, NPD/Formulations/Trials, Documents, and Costing/Invoices — see
+[Build order](#build-order) below. The `Changed - Working Logic` branch
+adds fixed payment-stage gating, in-app notifications, raw-material/
+supplier records with stock monitoring, client rework requests, a Proposal
+workflow, Cost Intelligence selling-price suggestions, and a dedicated
+Client Portal page — see ["Changed - Working Logic" branch
+additions](#changed---working-logic-branch-additions) below.
 
 ## Stack
 
@@ -142,6 +147,18 @@ git clone https://github.com/aayushi-29/FM-ERP.git
 cd FM-ERP
 ```
 
+To work on the `Changed - Working Logic` branch instead of `main` (it has
+everything in `main` plus the additions listed in ["Changed - Working
+Logic" branch additions](#changed---working-logic-branch-additions)
+below), check it out right after cloning:
+
+```bash
+git checkout Changed-Working-Logic
+```
+
+This only switches which branch your local clone points to — it doesn't
+touch `main` on GitHub or anyone else's copy of it.
+
 **2. Install dependencies**
 
 ```bash
@@ -189,6 +206,13 @@ npm run prisma:migrate
 
 `prisma:migrate` will prompt you to name the migration the first time
 (e.g. `init`) — that's expected.
+
+If you already set this database up before pulling the `Changed - Working
+Logic` branch, `prisma:migrate` detects the new tables/columns
+(`Proposal`, `StockMovement`, `RawMaterial.stockOnHand`, `CostSheet
+.markupPercent`, etc.) and prompts for a new migration name instead — any
+name works, e.g. `proposal_stock_cost_portal`. It only adds to your
+existing data; nothing existing is dropped or changed.
 
 **6. Create your first Admin login**
 
@@ -313,7 +337,10 @@ around existing code:
   `ProjectAssignment` row, and marks the `Lead` `CONVERTED` with
   `convertedToProjectId` set — never partially, and never two ways to
   reach `CONVERTED` (the plain `PATCH` route explicitly rejects setting
-  that status directly).
+  that status directly). **On the `Changed - Working Logic` branch**,
+  conversion also requires an `ACCEPTED` Proposal on the lead first — see
+  ["Changed - Working Logic" branch
+  additions](#changed---working-logic-branch-additions) below.
 - Every create/update in both modules writes an `AuditLog` row in the same
   database transaction as the change itself (baseline §7: operations that
   must succeed or fail together use one transaction) — not as a
