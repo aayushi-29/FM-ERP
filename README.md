@@ -4,8 +4,6 @@ Role-based ERP for Food Monk Innovations: client relationship management, projec
 and task management, new product development (formulations, trials), document
 management, and project-level costing/invoicing.
 
-_Last updated: 28 Oct 2026, 11:19 IST — pushed to confirm `aayushi-29/FM-ERP` is live._
-
 **Status:** Auth, Users, Clients/CRM, and Projects/Tasks/Milestones are
 built. NPD/Formulations, Documents, and Costing/Invoices are not yet — see
 [Build order](#build-order) below.
@@ -21,14 +19,60 @@ This stack was chosen because the repository had no existing code to audit or
 preserve at project start (confirmed empty on 2026-10-28); it's the stack the
 original system-design baseline recommends for a modular-monolith MVP.
 
+## Installing PostgreSQL on Windows
+
+1. **Download the installer** from
+   [postgresql.org/download/windows](https://www.postgresql.org/download/windows/)
+   → "Download the installer" (EDB's installer). Pick the latest 16.x or
+   17.x build.
+2. **Run the installer.** Accept the defaults except:
+   - **Password** — when it asks for a password for the `postgres`
+     superuser, pick one and **write it down**. You'll need it in step 4
+     below.
+   - **Port** — leave it at the default `5432` unless something else on
+     your machine already uses that port.
+   - On the "Select Components" screen, leave everything checked
+     (Stack Builder isn't needed — you can skip it if prompted at the end).
+3. **Confirm it installed and is running.** Open **Services** (press
+   `Win + R`, type `services.msc`, Enter) and look for
+   `postgresql-x64-<version>` in the list — its status should say
+   "Running". If it's not running, right-click it → Start.
+4. **Create the app's database.** Open **SQL Shell (psql)** from the Start
+   menu (it was installed alongside Postgres). It'll prompt you for:
+   ```
+   Server [localhost]:     press Enter (accept default)
+   Database [postgres]:    press Enter (accept default)
+   Port [5432]:             press Enter (accept default)
+   Username [postgres]:    press Enter (accept default)
+   Password for user postgres:   <the password from step 2>
+   ```
+   Then at the `postgres=#` prompt, type:
+   ```sql
+   CREATE DATABASE fm_erp;
+   ```
+   You should see `CREATE DATABASE`. Type `\q` and Enter to exit.
+5. **Your connection string** is now:
+   ```
+   postgresql://postgres:<your-password>@localhost:5432/fm_erp?schema=public
+   ```
+   Use this for both `DATABASE_URL` and `DIRECT_URL` in step 4 of Getting
+   Started below. If your password contains `@`, `:`, `/`, or `#`,
+   [URL-encode it](https://www.urlencoder.org/) or pick a password without
+   those characters to keep things simple.
+
+> **Prefer not to install Postgres locally?** Skip all of the above, sign
+> up at [neon.tech](https://neon.tech) (free tier), create a project, and
+> copy the connection strings it gives you straight into `.env` — Neon
+> gives you a pooled one for `DATABASE_URL` and an unpooled one for
+> `DIRECT_URL` directly, no extra setup.
+
 ## Getting started (local machine)
 
 **Prerequisites**
 - [Node.js](https://nodejs.org) 20 or later (`node -v` to check)
-- [PostgreSQL](https://www.postgresql.org/download/) 14+ running locally,
-  or a free cloud instance (e.g. [Neon](https://neon.tech) — see the note
-  on `DIRECT_URL` below if you use a pooled provider like Neon/Supabase)
-- Git
+- [PostgreSQL](https://www.postgresql.org/download/) 14+ running locally
+  — see **Installing PostgreSQL on Windows** below
+- Git ([git-scm.com](https://git-scm.com/download/win))
 
 **1. Clone the repo**
 
@@ -43,26 +87,29 @@ cd FM-ERP
 npm install
 ```
 
-**3. Create your local database** (skip if using a cloud provider — just
-grab its connection string instead)
+**3. Create your local database**
 
-```bash
-createdb fm_erp
-# or, inside psql: CREATE DATABASE fm_erp;
-```
+Already done if you followed **Installing PostgreSQL on Windows** above
+(step 4). If you're on a cloud provider instead, create a project there and
+grab its connection string.
 
 **4. Set up environment variables**
 
+In **Git Bash** (installed with Git for Windows):
 ```bash
 cp .env.example .env
 ```
+In **PowerShell** instead:
+```powershell
+copy .env.example .env
+```
 
-Open `.env` and fill in:
-- `DATABASE_URL` — your Postgres connection string, e.g.
-  `postgresql://postgres:yourpassword@localhost:5432/fm_erp?schema=public`
-- `DIRECT_URL` — same value as `DATABASE_URL` for plain local Postgres (no
-  pooler). If you're on Neon/Supabase, use their *unpooled* connection
-  string here and the pooled one for `DATABASE_URL`.
+Open `.env` (in Notepad, VS Code, or any text editor) and fill in:
+- `DATABASE_URL` and `DIRECT_URL` — both set to the connection string from
+  step 5 of **Installing PostgreSQL on Windows** above (e.g.
+  `postgresql://postgres:yourpassword@localhost:5432/fm_erp?schema=public`),
+  unless you're on Neon/Supabase, in which case use their pooled connection
+  string for `DATABASE_URL` and unpooled one for `DIRECT_URL`.
 - `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` — your first login (password:
   10+ characters). Remove both after your first successful seed, below.
 
@@ -103,6 +150,24 @@ Both should be clean. If `typecheck` shows errors mentioning `Role` not
 exported from `@prisma/client`, step 5 (`prisma:generate`) didn't complete —
 rerun it and check for errors in its output (a bad `DATABASE_URL` is the
 usual cause).
+
+**Common Windows issues**
+- `'psql' is not recognized as an internal or external command` — the
+  installer's bin folder (something like
+  `C:\Program Files\PostgreSQL\17\bin`) wasn't added to PATH. Use **SQL
+  Shell (psql)** from the Start menu instead (it works without PATH setup),
+  or add that folder to your PATH and open a new terminal.
+- `Error: P1001: Can't reach database server at localhost:5432` (during
+  `prisma:migrate` or `npm run dev`) — Postgres isn't running. Open
+  `services.msc`, find `postgresql-x64-<version>`, and start it.
+- `password authentication failed for user "postgres"` — the password in
+  `DATABASE_URL` doesn't match what you set in step 2 of the install.
+  There's no "forgot password" for local Postgres — reinstall, or reset it
+  via `ALTER USER postgres PASSWORD 'newpassword';` in SQL Shell (psql) if
+  you can still log in with the old one.
+- Port `5432` already in use — something else is using it (maybe an
+  earlier Postgres install). Either stop that service, or install this one
+  on a different port and update `DATABASE_URL`/`DIRECT_URL` to match.
 
 > **Note on this sandbox:** `npm run typecheck` shows a cluster of errors
 > here — all trace back to one cause: this development environment's
