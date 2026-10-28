@@ -38,42 +38,50 @@ export default function LoginPage() {
   }
 
   return (
-    <main style={{ maxWidth: 360, margin: "4rem auto", fontFamily: "system-ui, sans-serif" }}>
-      <h1 style={{ fontSize: "1.3rem" }}>Sign in to Food Monk ERP</h1>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
-        <label>
-          Email
-          <input
-            id="email"
-            type="email"
-            autoComplete="username"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }}
-          />
-        </label>
-        <label>
-          Password
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }}
-          />
-        </label>
-        {error ? <p role="alert" style={{ color: "#b00020", fontSize: ".9rem" }}>{error}</p> : null}
-        <button type="submit" disabled={submitting} style={{ padding: "8px 16px" }}>
-          {submitting ? "Signing in…" : "Sign in"}
-        </button>
-      </form>
-      <p style={{ fontSize: ".82rem", color: "#666", marginTop: 16 }}>
-        Account access is created by your Admin. Contact them if you don&apos;t
-        have a login yet.
-      </p>
+    <main className="fm-login">
+      <div className="fm-login-card glass glass-strong glass-card">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="Food Monk Innovations" width={56} height={56} className="fm-login-logo" />
+        <h1>Sign in</h1>
+        <p className="fm-muted fm-login-sub">Welcome back to Food Monk ERP.</p>
+
+        <form onSubmit={handleSubmit} className="fm-login-form">
+          <label htmlFor="email">
+            Email
+            <input
+              id="email"
+              type="email"
+              autoComplete="username"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </label>
+          <label htmlFor="password">
+            Password
+            <input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </label>
+          {error ? (
+            <p role="alert" className="fm-login-error">
+              {error}
+            </p>
+          ) : null}
+          <button type="submit" disabled={submitting} className="fm-login-submit">
+            {submitting ? "Signing in…" : "Sign in"}
+          </button>
+        </form>
+
+        <p className="fm-muted fm-login-footnote">
+          Account access is created by your Admin. Contact them if you don&apos;t have a login yet.
+        </p>
+      </div>
     </main>
   );
 }
