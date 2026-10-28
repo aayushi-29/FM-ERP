@@ -345,6 +345,13 @@ around existing code:
   check on mutating routes (`lib/security/origin.ts`), and a login rate
   limiter (`lib/security/rate-limit.ts` — **note its production caveat**,
   it's an in-memory placeholder that needs a shared store before go-live).
+  **The CSP header only applies when `NODE_ENV=production`** — Next.js's
+  own dev-mode Fast Refresh needs `eval()` and inline scripts, which a
+  strict `script-src 'self'` blocks outright (this broke login's "Sign in"
+  button entirely during local testing — the CSP error was silently
+  killing every client-side event handler on the page, not just the
+  script it flagged). `npm run build && npm run start` runs with the real
+  production CSP in place if you want to test against it locally.
 
 Security hardening (TLS/headers, CSRF protection, dependency scanning, external
 pen test, DPDP Act review) happens continuously during build and as a gate
