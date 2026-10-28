@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { CLIENT_SAFE_PROJECT_SELECT } from "@/lib/projects/scope";
@@ -101,6 +102,12 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           <NewMilestoneForm projectId={project.id} />
         </div>
       ) : null}
+
+      <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Products &amp; formulations</h2>
+      <p style={{ color: "#555", fontSize: ".9rem" }}>
+        Track recipes, process notes, trials, and client approvals for this project.
+      </p>
+      <Link href={`/projects/${project.id}/products`}>Open products →</Link>
     </main>
   );
 }

@@ -275,7 +275,7 @@ around existing code:
 1. **Project scaffold** — done. Next.js/TypeScript/Prisma wiring, no secrets committed.
 2. **Database schema & migrations** — done. `prisma/schema.prisma` encodes the confirmed decisions (roles, formulation versioning, decimal money, deferred inventory).
 3. **Auth & server-side RBAC** — done for email/password. `lib/auth/` has password hashing, DB-backed sessions (revocable — Decision #9), and `requireUser`/`requireRole`/`assertProjectAccess` helpers every route and page must call explicitly (no implicit protection via folder nesting). SSO/OAuth (Google/Microsoft for staff) is a planned follow-on, not built yet — the `Session` model and cookie-based approach were chosen so adding an OAuth provider later doesn't require a redesign.
-4. **Core module APIs**, in dependency order: **Users → Clients/CRM → Projects/Tasks** (done) → NPD/Formulations/Trials → Documents → Costing/Invoices. Each module ships with its own permission and integrity tests — see "Users & CRM, as built" and "Projects, Tasks & Milestones, as built" below for what's covered so far and what's intentionally deferred.
+4. **Core module APIs**, in dependency order: **Users → Clients/CRM → Projects/Tasks → NPD/Formulations/Trials** (done) → Documents → Costing/Invoices. Each module ships with its own permission and integrity tests — see "Users & CRM, as built", "Projects, Tasks & Milestones, as built", and "NPD / Formulations / Trials, as built" below for what's covered so far and what's intentionally deferred.
 5. **Role dashboards & UI** — built against the real APIs above, in plain language for non-technical users.
 6. **Audit trail & test suite** — audit logging wired across sensitive actions; cross-client, assignment-boundary, and cost/invoice tests from the baseline's acceptance criteria.
 
@@ -335,6 +335,74 @@ around existing code:
 - **Leads → client conversion** (baseline §6.1) is still not built — it
   creates a Project, so it depended on this module existing first. It's
   the natural next small piece before NPD/Formulations.
+
+## NPD / Formulations / Trials, as built
+
+- **Products** (`/projects/:id/products`, `app/api/projects/[id]/products`):
+  Admin and NPD Executive create them under a project the actor is
+  assigned to (or any project, for Admin); Project Lead can read but not
+  create (baseline §4 Formulations row: "Review/approve", not "Create").
+  Client has no route here at all — unlike CRM/Projects, there's no
+  reduced Client view of a product list, because the baseline gives
+  Client no row for Products/Formulations, only a single approved
+  formulation version's summary (see below).
+- **Formulations & versions** (`/products/:id`, `/formulations/:id`,
+  `/formulation-versions/:id`): creating a Formulation always creates its
+  version 1 as a `DRAFT` in the same transaction — a Formulation with zero
+  versions isn't a meaningful object. A `DRAFT` version's `processNotes`
+  and ingredient lines can only be edited by the NPD Executive/Admin who's
+  working on it; once submitted (`IN_REVIEW`) or decided
+  (`APPROVED`/`REJECTED`), the version is locked — baseline §7's
+  "Formulation versions are immutable after publication/approval;
+  revisions create new versions" is read here to mean *every* post-draft
+  status, not just Approved, since an `IN_REVIEW` version mid-decision
+  shouldn't change under the reviewer either. A **Revise** action
+  (`/api/formulation-versions/:id/revise`) creates version N+1 as a fresh
+  `DRAFT`, copying the ingredient lines forward, rather than ever
+  un-finalizing an old version — it's only offered on the latest version of
+  a formulation, to avoid branching history.
+- **Approvals**: Project Lead or Admin decide an `IN_REVIEW` version
+  (`/api/formulation-versions/:id/approve`), writing both an `Approval` row
+  and an `AuditLog` entry in the same transaction — baseline §10
+  explicitly calls out approvals as needing an audit trail, so this is one
+  of the few actions that write to both the audit log and the lighter
+  project-activity feed.
+- **Client visibility — interpretation flag:** the baseline's permission
+  matrix gives Client "Approved summary only" for Formulations, while a
+  separate workflow note (§6.3) describes a client-facing step that reads
+  more like reviewing a document. Rather than guess which one the business
+  actually wants, this build takes the matrix literally: a Client reaching
+  `/formulation-versions/:id` (or the matching API route) for a version
+  that isn't `APPROVED` gets a 404, and even an `APPROVED` version is
+  served through `CLIENT_SAFE_VERSION_SELECT` (`lib/npd/scope.ts`) — a
+  distinct Prisma `select`, not the full payload with fields hidden —
+  which omits the recipe entirely (no ingredient lines, no process notes,
+  no trial data). If Food Monk actually wants clients to see a prepared
+  one-page summary document instead of nothing-but-metadata, that's the
+  `Document` model's `FORMULATION_SUMMARY` type + `CLIENT_VISIBLE`
+  visibility, which exists in the schema but has no API/UI yet (deferred
+  to the Documents module, next in the build order).
+- **Trials** (`/formulation-versions/:id`, `app/api/trials`): Admin has
+  full access; Project Lead reads (no write — the matrix gives them no
+  Trials row at all beyond "Read assigned projects"); NPD Executive can
+  create trials and can only update a trial they themselves conducted,
+  enforced server-side in `app/api/trials/[id]/route.ts` by comparing
+  `conductedById` to the actor, not by what the UI happens to show. Client
+  has no access, matching the matrix's "No access by default." **A second
+  interpretation flag:** whether an NPD Executive may *see* a colleague's
+  trial on a formulation version they're both working on isn't specified
+  by "create/update assigned trials" — this build reads trial visibility
+  as shared across everyone already permitted into the project (so a
+  trial log is useful as a team record), while keeping create/update
+  strictly to the conductor; see the comment above the `GET` handler in
+  `app/api/formulation-versions/[id]/trials/route.ts` for how to narrow
+  it if Food Monk wants trials kept private to their author.
+- Every Decimal field here (ingredient quantity, percentage, trial
+  quantity consumed) is validated as a plain decimal string
+  (`/^\d+(\.\d+)?$/`) before it ever reaches Prisma — the same rule the
+  baseline states for money (§7: "never use floating-point arithmetic for
+  financial totals") applied to recipe quantities, since Costing will
+  later multiply against them.
 
 ## Auth, as built
 
