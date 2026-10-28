@@ -70,6 +70,11 @@ model User {
   revisionRequestsFiled           RevisionRequest[]        @relation("RevisionRequester")
   rawMaterialAttachmentsUploaded  RawMaterialAttachment[]   @relation("RawMaterialAttachmentUploader")
 
+  // 29 Oct 2026 additions (Proposal workflow + stock monitoring).
+  proposalsAuthored     Proposal[]      @relation("ProposalAuthor")
+  proposalsReviewed     Proposal[]      @relation("ProposalReviewer")
+  stockMovementsRecorded StockMovement[] @relation("StockMovementRecorder")
+
   @@index([clientOrgId])
 }
 
@@ -148,6 +153,76 @@ model Lead {
   notes       String?
   createdAt   DateTime   @default(now())
   convertedToProjectId String?
+
+  // 29 Oct 2026: Proposal workflow — see Proposal model below and
+  // docs/decisions.md's "Proposal/Quotation workflow" note.
+  proposals   Proposal[]
+}
+
+// Confirmed with the user (29 Oct 2026) to be built: "Create Proposal →
+// Internal Review → Approval → Send to Client, with a revision loop back
+// to Create Proposal" (the user's own words). The baseline's conceptual
+// data model (§7) names "Proposal/Quotation" as a CRM entity, but §6.1
+// never narrates a distinct approval workflow for it — this is a
+// genuinely new addition, not a baseline gap, and is treated as such in
+// docs/decisions.md.
+//
+// There is no Client user account yet at the lead stage (ClientOrganization
+// /ClientContact/User for the client are only created on conversion — see
+// app/api/leads/[id]/convert/route.ts), so a prospective client can't log
+// in to accept or request changes themselves. Exactly like payment
+// verification (Admin manually confirms an offline bank acknowledgement),
+// "the client accepted" / "the client asked for changes" here means an
+// Admin or Project Lead recording that decision after an offline
+// conversation/email — not a client-side action. clientDecisionNotes
+// captures what the client actually said, for the record.
+enum ProposalStatus {
+  DRAFT
+  INTERNAL_REVIEW
+  SENT
+  REVISION_REQUESTED
+  ACCEPTED
+}
+
+model Proposal {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+
+  // Each revision loop ("client asked for changes") creates a new Proposal
+  // row rather than mutating the sent one, mirroring FormulationVersion's
+  // versioning convention (Decision #3) so a sent proposal's exact wording
+  // stays on record even after it's superseded.
+  versionNumber     Int        @default(1)
+  previousVersionId String?
+  previousVersion   Proposal?  @relation("ProposalHistory", fields: [previousVersionId], references: [id])
+  nextVersions      Proposal[] @relation("ProposalHistory")
+
+  status      ProposalStatus @default(DRAFT)
+  title       String
+  content     String
+  validUntil  DateTime?
+
+  preparedById String
+  preparedBy   User   @relation("ProposalAuthor", fields: [preparedById], references: [id])
+
+  // Set when an Admin/Project Lead approves it out of INTERNAL_REVIEW,
+  // moving it to SENT.
+  reviewedById String?
+  reviewedBy   User?   @relation("ProposalReviewer", fields: [reviewedById], references: [id])
+  reviewNotes  String?
+  sentAt       DateTime?
+
+  // Set when the client's decision (ACCEPTED or REVISION_REQUESTED) is
+  // recorded.
+  clientDecisionNotes String?
+  decidedAt           DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+  @@index([previousVersionId])
 }
 
 // ---------- Delivery: projects, tasks, milestones ----------
@@ -482,6 +557,18 @@ model CostSheet {
   batchSizeUnits       Decimal  @db.Decimal(14, 4) // units produced per batch — needed to go from cost-per-batch to cost-per-unit
   costPerBatch         Decimal  @db.Decimal(14, 2) // computed server-side from the inputs above, never trusted from the client
   costPerUnit          Decimal  @db.Decimal(14, 4) // = costPerBatch / batchSizeUnits
+
+  // 29 Oct 2026: Cost Intelligence addition — confirmed with the user.
+  // markupPercent is an optional user-entered input (markup over
+  // costPerUnit); recommendedSellingPrice is computed server-side from it,
+  // same pattern as costPerBatch/costPerUnit. This is explicitly a
+  // SUGGESTION only: Decision #4 still needs accountant sign-off on the
+  // costing formula itself, so nothing reads this field automatically —
+  // no invoice or quotation amount is ever derived from it without a human
+  // choosing to use it (see lib/costing/compute.ts).
+  markupPercent           Decimal? @db.Decimal(6, 3)
+  recommendedSellingPrice Decimal? @db.Decimal(14, 4)
+
   currency             String   @default("INR")
   notes                String?  // free-text assumptions — e.g. which supplier quote, what's excluded
   supersedesId         String?  // a recalculation creates a new row and points here — never overwrites
@@ -638,10 +725,43 @@ model RawMaterial {
   // the confirmed number on the CostSheet itself is the record.
   defaultCostPerUnit Decimal? @db.Decimal(14, 4)
 
+  // 29 Oct 2026: lightweight stock monitoring — confirmed with the user to
+  // explicitly supersede Decision #7's "records only, no stock ledger"
+  // (see docs/decisions.md). Deliberately NOT the fuller procurement/
+  // inventory system the baseline describes as a later phase (§6.6:
+  // purchase orders, receipts, reservations, discrepancy handling) — just
+  // a running total plus a simple movement log and a reorder-threshold
+  // alert, auditable without that larger build. stockOnHand is a
+  // denormalized total kept in sync with StockMovement rows inside the
+  // same transaction (lib/inventory/stock.ts), not computed on every read.
+  stockOnHand      Decimal  @default(0) @db.Decimal(14, 4)
+  // Null = no alerting configured for this material.
+  reorderThreshold Decimal? @db.Decimal(14, 4)
+
   ingredientLines IngredientLine[]
   attachments     RawMaterialAttachment[]
+  stockMovements  StockMovement[]
 
   @@index([supplierId])
+}
+
+// One row per stock change (a delivery received, consumption recorded,
+// wastage, or a manual correction) — quantityDelta is signed: positive
+// adds to stockOnHand, negative subtracts. No separate movement "type"
+// enum and no link to a purchase order/receipt — that structure is the
+// fuller inventory system Decision #7 (original wording) deferred to
+// Phase 2; this is intentionally the lighter-weight version.
+model StockMovement {
+  id            String   @id @default(cuid())
+  rawMaterialId String
+  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  quantityDelta Decimal  @db.Decimal(14, 4)
+  reason        String?
+  recordedById  String
+  recordedBy    User     @relation("StockMovementRecorder", fields: [recordedById], references: [id])
+  recordedAt    DateTime @default(now())
+
+  @@index([rawMaterialId])
 }
 
 // Ingredient Certificate of Analysis, image-only (enforced in the upload

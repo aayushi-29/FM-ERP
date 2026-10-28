@@ -26,6 +26,7 @@ export function NewCostSheetForm({
   const [formulationVersionId, setFormulationVersionId] = useState(formulationVersions[0]?.id ?? "");
   const [priceBasis, setPriceBasis] = useState<"ESTIMATE" | "SUPPLIER_QUOTE" | "ACTUAL">("ESTIMATE");
   const [values, setValues] = useState<Record<string, string>>({});
+  const [markupPercent, setMarkupPercent] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -46,6 +47,7 @@ export function NewCostSheetForm({
           formulationVersionId,
           priceBasis,
           notes: notes || undefined,
+          markupPercent: markupPercent || undefined,
           ...Object.fromEntries(FIELDS.map(([key]) => [key, values[key] || "0"])),
         }),
       });
@@ -55,6 +57,7 @@ export function NewCostSheetForm({
         return;
       }
       setValues({});
+      setMarkupPercent("");
       setNotes("");
       router.refresh();
     } catch {
@@ -100,6 +103,15 @@ export function NewCostSheetForm({
           </label>
         ))}
       </div>
+      <label>
+        Markup % (optional — suggests a selling price only, needs accountant sign-off)
+        <input
+          value={markupPercent}
+          onChange={(e) => setMarkupPercent(e.target.value)}
+          placeholder="e.g. 25"
+          style={{ display: "block", width: "100%", padding: 6 }}
+        />
+      </label>
       <label>
         Notes (assumptions)
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} style={{ display: "block", width: "100%", padding: 6 }} />

@@ -51,6 +51,17 @@ export default async function CostSheetDetailPage({ params }: { params: { id: st
         <p style={{ margin: "2px 0 0", color: "#555" }}>
           {costSheet.costPerBatch.toString()} {costSheet.currency} per batch
         </p>
+        {costSheet.recommendedSellingPrice ? (
+          <p style={{ margin: "8px 0 0", paddingTop: 8, borderTop: "1px solid #ddd" }}>
+            Suggested selling price: <strong>{costSheet.recommendedSellingPrice.toString()} {costSheet.currency}</strong> / unit
+            {costSheet.markupPercent ? ` (${costSheet.markupPercent.toString()}% markup on cost)` : ""}
+            <br />
+            <span style={{ color: "#777", fontSize: ".8rem" }}>
+              Suggestion only — not an approved price. Decision #4&apos;s costing formula still needs accountant
+              sign-off.
+            </span>
+          </p>
+        ) : null}
       </div>
 
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: ".9rem" }}>

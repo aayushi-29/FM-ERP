@@ -71,3 +71,31 @@ export async function notify(
     })),
   });
 }
+
+// 29 Oct 2026: stock-monitoring addition. RawMaterial is a company-wide
+// catalog entry, not scoped to a Project, so the resolveCompanyRecipientIds
+// helper above (which starts from a projectId) doesn't apply — this
+// notifies every active ADMIN and NPD_EXECUTIVE directly instead, since
+// those are the roles with inventory-manage access (lib/inventory/scope.ts).
+// Notification.projectId is left null, same nullable field the model
+// already had for exactly this kind of non-project notification.
+export async function notifyCompanyWide(
+  entry: { type: string; message: string; link?: string },
+  db: DbClient = prisma
+): Promise<void> {
+  const recipients = await db.user.findMany({
+    where: { role: { in: ["ADMIN", "NPD_EXECUTIVE"] }, active: true },
+    select: { id: true },
+  });
+  if (recipients.length === 0) return;
+
+  await db.notification.createMany({
+    data: recipients.map((u) => ({
+      recipientId: u.id,
+      projectId: null,
+      type: entry.type,
+      message: entry.message,
+      link: entry.link,
+    })),
+  });
+}

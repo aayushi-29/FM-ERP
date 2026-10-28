@@ -4,12 +4,14 @@ import { canManageInventory } from "@/lib/inventory/scope";
 import { NewSupplierForm } from "./new-supplier-form";
 import { NewRawMaterialForm } from "./new-raw-material-form";
 import { CoaUploadForm } from "./coa-upload-form";
+import { StockMovementForm } from "./stock-movement-form";
 
 // "Add inventory management/supplier details of the raw materials used" —
-// Decision #7 still stands (records only, no stock ledger/quantities on
-// hand); this is the catalog view of Supplier/RawMaterial, which already
-// existed in the schema but had no UI until now. Internal tooling, same
-// plain styling as /leads, /clients, /projects (not yet themed).
+// the catalog view of Supplier/RawMaterial. 29 Oct 2026: now also shows
+// stock-on-hand and a low-stock flag — confirmed with the user to
+// explicitly supersede Decision #7's "no stock ledger" (docs/decisions.md).
+// Internal tooling, same plain styling as /leads, /clients, /projects (not
+// yet themed).
 export default async function RawMaterialsPage() {
   const user = await requireRoleOrRedirect(["ADMIN", "PROJECT_LEAD", "NPD_EXECUTIVE"]);
   const canManage = canManageInventory(user.role);
@@ -25,6 +27,8 @@ export default async function RawMaterialsPage() {
         name: true,
         defaultUnit: true,
         defaultCostPerUnit: true,
+        stockOnHand: true,
+        reorderThreshold: true,
         supplier: { select: { id: true, name: true } },
         attachments: {
           select: { id: true, fileName: true, uploadedAt: true, uploadedBy: { select: { name: true } } },
@@ -35,13 +39,22 @@ export default async function RawMaterialsPage() {
     }),
   ]);
 
+  const lowStockCount = rawMaterials.filter(
+    (m) => m.reorderThreshold != null && Number(m.stockOnHand) <= Number(m.reorderThreshold)
+  ).length;
+
   return (
     <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 900 }}>
       <h1>Raw materials &amp; suppliers</h1>
       <p style={{ color: "#555", fontSize: ".9rem" }}>
         Company-wide catalog of suppliers and the raw materials sourced from them, with Certificate
-        of Analysis images attached per material. Records only — no stock-on-hand tracking yet.
+        of Analysis images attached per material, stock on hand, and low-stock alerts.
       </p>
+      {lowStockCount > 0 ? (
+        <p style={{ color: "#b00020", fontWeight: 600, fontSize: ".9rem" }} role="status">
+          ⚠ {lowStockCount} material{lowStockCount === 1 ? "" : "s"} at or below its reorder threshold.
+        </p>
+      ) : null}
 
       <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Suppliers</h2>
       {suppliers.length === 0 ? (
@@ -77,16 +90,31 @@ export default async function RawMaterialsPage() {
                 <th style={{ padding: "6px 8px" }}>Supplier</th>
                 <th style={{ padding: "6px 8px" }}>Unit</th>
                 <th style={{ padding: "6px 8px" }}>Ref. cost/unit</th>
+                <th style={{ padding: "6px 8px" }}>Stock on hand</th>
                 <th style={{ padding: "6px 8px" }}>COA images</th>
               </tr>
             </thead>
             <tbody>
-              {rawMaterials.map((m) => (
+              {rawMaterials.map((m) => {
+                const isLow = m.reorderThreshold != null && Number(m.stockOnHand) <= Number(m.reorderThreshold);
+                return (
                 <tr key={m.id} style={{ borderBottom: "1px solid #eee", verticalAlign: "top" }}>
                   <td style={{ padding: "8px" }}>{m.name}</td>
                   <td style={{ padding: "8px" }}>{m.supplier?.name ?? "—"}</td>
                   <td style={{ padding: "8px" }}>{m.defaultUnit}</td>
                   <td style={{ padding: "8px" }}>{m.defaultCostPerUnit ? m.defaultCostPerUnit.toString() : "—"}</td>
+                  <td style={{ padding: "8px" }}>
+                    <span style={isLow ? { color: "#b00020", fontWeight: 600 } : undefined}>
+                      {m.stockOnHand.toString()} {m.defaultUnit}
+                      {isLow ? " ⚠ low" : ""}
+                    </span>
+                    {m.reorderThreshold != null ? (
+                      <div style={{ color: "#777", fontSize: ".78rem" }}>
+                        reorder at {m.reorderThreshold.toString()}
+                      </div>
+                    ) : null}
+                    {canManage ? <StockMovementForm rawMaterialId={m.id} /> : null}
+                  </td>
                   <td style={{ padding: "8px" }}>
                     {m.attachments.length === 0 ? (
                       <span style={{ color: "#777" }}>None yet</span>
@@ -105,7 +133,8 @@ export default async function RawMaterialsPage() {
                     {canManage ? <CoaUploadForm rawMaterialId={m.id} /> : null}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

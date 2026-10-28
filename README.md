@@ -714,8 +714,7 @@ rationale, and the inline comments in the files below for the detail:
   email/SMS transport.
 - **Supplier/raw-material UI** at `/raw-materials` (`lib/inventory/scope.ts`)
   — the `Supplier`/`RawMaterial` records already existed in the schema but
-  had no routes or pages before this. Still records-only, per Decision #7 —
-  no stock ledger.
+  had no routes or pages before this.
 - **Ingredient COA image uploads** (`RawMaterialAttachment`) — restricted to
   image MIME types only, enforced in
   `app/api/raw-materials/[id]/attachments/route.ts`.
@@ -726,8 +725,35 @@ rationale, and the inline comments in the files below for the detail:
   (`app/formulation-versions/[id]/trials-section.tsx`) — same underlying
   create/update/attach/remove actions, unchanged.
 
+A second requirements pass (29 Oct 2026) added four more items — see
+`docs/decisions.md`'s second superseding note for the full rationale:
+
+- **Proposal workflow** (`Proposal` model on `Lead`) — Create → Internal
+  Review → Approval → Send to Client, with a revision loop back to Create.
+  `app/leads/[id]/proposal-section.tsx` is the UI;
+  `app/api/leads/[id]/proposals/route.ts` and `app/api/proposals/[id]/*`
+  are the routes. **Breaking change, done deliberately**: converting a
+  lead (`app/api/leads/[id]/convert/route.ts`) now requires an `ACCEPTED`
+  proposal on it first (`lib/crm/proposals.ts`).
+- **Stock monitoring & low-stock alerts** — `RawMaterial.stockOnHand` /
+  `.reorderThreshold` and a new `StockMovement` model
+  (`lib/inventory/stock.ts`), shown on `/raw-materials`. This explicitly
+  supersedes Decision #7's "no stock ledger" — still not the fuller
+  purchase-order/receipt system Phase 2 describes, just a running total,
+  a movement log, and a threshold alert.
+- **Cost Intelligence** — an optional markup-% input on a cost sheet
+  produces a `recommendedSellingPrice` suggestion (`lib/costing/compute.ts`),
+  shown on `/cost-sheets/[id]` clearly labeled as a suggestion only —
+  Decision #4's costing formula still needs accountant sign-off, and
+  nothing reads this field automatically.
+- **Client Portal page** (`/portal`, `app/portal/page.tsx`) — a
+  consolidated, CLIENT-only landing page (status/milestones/documents/
+  invoices grouped by project), in addition to the existing dashboard and
+  per-project Client views, neither of which changed.
+
 None of this touches the schema fields, routes, or UI the rest of the app
 already relied on — every change above is additive (new nullable columns,
 new models, new routes) or scoped to a single route's new behavior (the
 execution gate only blocks *creating* a task/trial; it doesn't block reading
-or updating existing ones).
+or updating existing ones; the lead-conversion gate is the one intentional
+exception, called out above).

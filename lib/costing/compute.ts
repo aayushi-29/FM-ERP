@@ -37,11 +37,21 @@ export interface CostSheetInputs {
   testingCost: Decimal | string;
   overheadCost: Decimal | string;
   batchSizeUnits: Decimal | string;
+  // 29 Oct 2026: Cost Intelligence addition — confirmed with the user.
+  // Optional: when omitted, no recommendedSellingPrice is computed at all
+  // (not even a zero/null placeholder meant to look authoritative).
+  markupPercent?: Decimal | string;
 }
 
 export interface CostSheetTotals {
   costPerBatch: Decimal;
   costPerUnit: Decimal;
+  // A SUGGESTION only — see this file's header comment and the schema
+  // comment on CostSheet.recommendedSellingPrice. Decision #4 (costing
+  // formula) still needs accountant sign-off; this is one more reasonable
+  // reading on top of that, isolated here so it can be swapped or dropped
+  // without touching any route. Undefined when markupPercent wasn't given.
+  recommendedSellingPrice?: Decimal;
 }
 
 export function computeCostSheetTotals(input: CostSheetInputs): CostSheetTotals {
@@ -70,8 +80,20 @@ export function computeCostSheetTotals(input: CostSheetInputs): CostSheetTotals 
 
   const costPerUnit = costPerBatch.div(batchSizeUnits);
 
+  // Markup-on-cost (not margin-on-price): recommendedSellingPrice =
+  // costPerUnit × (1 + markupPercent / 100). Chosen over a margin-on-price
+  // formula (price = cost / (1 - margin%)) because it's the simpler,
+  // more common reading of "markup" and avoids a division that blows up
+  // as margin% approaches 100 — a margin-based version can be swapped in
+  // later without touching any route, same as the rest of this function.
+  const recommendedSellingPrice =
+    input.markupPercent !== undefined
+      ? costPerUnit.mul(new Decimal(1).add(new Decimal(input.markupPercent).div(100))).toDecimalPlaces(4)
+      : undefined;
+
   return {
     costPerBatch: costPerBatch.toDecimalPlaces(2),
     costPerUnit: costPerUnit.toDecimalPlaces(4),
+    recommendedSellingPrice,
   };
 }

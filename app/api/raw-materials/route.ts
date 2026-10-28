@@ -19,10 +19,17 @@ export async function GET() {
         name: true,
         defaultUnit: true,
         defaultCostPerUnit: true,
+        stockOnHand: true,
+        reorderThreshold: true,
         supplier: { select: { id: true, name: true } },
         attachments: {
           select: { id: true, fileName: true, uploadedAt: true, uploadedBy: { select: { name: true } } },
           orderBy: { uploadedAt: "desc" },
+        },
+        stockMovements: {
+          select: { id: true, quantityDelta: true, reason: true, recordedAt: true, recordedBy: { select: { name: true } } },
+          orderBy: { recordedAt: "desc" },
+          take: 5,
         },
       },
       orderBy: { name: "asc" },
@@ -39,6 +46,9 @@ const createRawMaterialSchema = z.object({
   supplierId: z.string().cuid().optional(),
   defaultUnit: z.string().min(1).max(30),
   defaultCostPerUnit: z.string().regex(/^\d+(\.\d+)?$/).optional(),
+  // 29 Oct 2026: stock monitoring addition — null/omitted means no
+  // low-stock alerting is configured for this material.
+  reorderThreshold: z.string().regex(/^\d+(\.\d+)?$/).optional(),
 });
 
 export async function POST(request: Request) {
@@ -67,6 +77,7 @@ export async function POST(request: Request) {
           supplierId: input.supplierId,
           defaultUnit: input.defaultUnit,
           defaultCostPerUnit: input.defaultCostPerUnit ? new Decimal(input.defaultCostPerUnit) : undefined,
+          reorderThreshold: input.reorderThreshold ? new Decimal(input.reorderThreshold) : undefined,
         },
       });
       await logAudit(

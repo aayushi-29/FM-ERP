@@ -11,6 +11,7 @@ export function NewRawMaterialForm({ suppliers }: { suppliers: Supplier[] }) {
   const [supplierId, setSupplierId] = useState("");
   const [defaultUnit, setDefaultUnit] = useState("");
   const [defaultCostPerUnit, setDefaultCostPerUnit] = useState("");
+  const [reorderThreshold, setReorderThreshold] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -27,6 +28,7 @@ export function NewRawMaterialForm({ suppliers }: { suppliers: Supplier[] }) {
           supplierId: supplierId || undefined,
           defaultUnit,
           defaultCostPerUnit: defaultCostPerUnit || undefined,
+          reorderThreshold: reorderThreshold || undefined,
         }),
       });
       if (!res.ok) {
@@ -38,6 +40,7 @@ export function NewRawMaterialForm({ suppliers }: { suppliers: Supplier[] }) {
       setSupplierId("");
       setDefaultUnit("");
       setDefaultCostPerUnit("");
+      setReorderThreshold("");
       router.refresh();
     } catch {
       setError("Could not reach the server.");
@@ -68,6 +71,10 @@ export function NewRawMaterialForm({ suppliers }: { suppliers: Supplier[] }) {
       <label style={{ width: 140 }}>
         Ref. cost/unit (optional)
         <input value={defaultCostPerUnit} onChange={(e) => setDefaultCostPerUnit(e.target.value)} placeholder="e.g. 120.50" style={{ display: "block", width: "100%", padding: 6 }} />
+      </label>
+      <label style={{ width: 150 }}>
+        Reorder threshold (optional)
+        <input value={reorderThreshold} onChange={(e) => setReorderThreshold(e.target.value)} placeholder="e.g. 10" style={{ display: "block", width: "100%", padding: 6 }} />
       </label>
       <button type="submit" disabled={submitting}>{submitting ? "Adding…" : "Add material"}</button>
       {error ? <p role="alert" style={{ color: "#b00020", fontSize: ".85rem", width: "100%" }}>{error}</p> : null}

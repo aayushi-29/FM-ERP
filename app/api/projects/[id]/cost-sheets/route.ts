@@ -44,6 +44,10 @@ const createCostSheetSchema = z.object({
   testingCost: decimalString,
   overheadCost: decimalString,
   batchSizeUnits: decimalString,
+  // 29 Oct 2026: Cost Intelligence addition — optional; omitted means no
+  // recommendedSellingPrice is computed or stored (see
+  // lib/costing/compute.ts).
+  markupPercent: decimalString.optional(),
   notes: z.string().max(2000).optional(),
   // When recalculating an existing cost sheet rather than pricing a
   // formulation version for the first time — points the new row at the
@@ -105,6 +109,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
           batchSizeUnits: input.batchSizeUnits,
           costPerBatch: totals.costPerBatch,
           costPerUnit: totals.costPerUnit,
+          markupPercent: input.markupPercent ?? undefined,
+          recommendedSellingPrice: totals.recommendedSellingPrice ?? undefined,
           notes: input.notes,
           supersedesId: input.supersedesId,
         },

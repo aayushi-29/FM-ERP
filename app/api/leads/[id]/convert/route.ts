@@ -6,6 +6,7 @@ import { logAudit } from "@/lib/audit";
 import { logProjectActivity } from "@/lib/projects/activity";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse, ValidationError } from "@/lib/api/respond";
+import { assertLeadHasAcceptedProposal } from "@/lib/crm/proposals";
 
 // Baseline §6.1. Admin-only: this is the one place a Lead turns into real
 // records — a new ClientOrganization, a ClientContact seeded from the
@@ -38,6 +39,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
     if (lead.status === "CONVERTED") {
       throw new ValidationError("This lead has already been converted");
     }
+
+    // Confirmed with the user (29 Oct 2026): conversion now requires an
+    // ACCEPTED Proposal on this lead — see lib/crm/proposals.ts.
+    await assertLeadHasAcceptedProposal(lead.id);
 
     const projectLead = await prisma.user.findUnique({ where: { id: input.leadId } });
     if (!projectLead || projectLead.role !== "PROJECT_LEAD" || !projectLead.active) {

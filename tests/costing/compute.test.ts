@@ -39,6 +39,38 @@ describe("computeCostSheetTotals", () => {
     ).toThrow(/yieldPercent/);
   });
 
+  it("leaves recommendedSellingPrice undefined when markupPercent is omitted", () => {
+    const totals = computeCostSheetTotals({
+      ingredientCost: "100",
+      yieldPercent: "100",
+      wastagePercent: "0",
+      packagingCost: "0",
+      processingCost: "0",
+      labourCost: "0",
+      testingCost: "0",
+      overheadCost: "0",
+      batchSizeUnits: "10",
+    });
+    expect(totals.recommendedSellingPrice).toBeUndefined();
+  });
+
+  it("computes recommendedSellingPrice as markup-on-cost when markupPercent is given", () => {
+    const totals = computeCostSheetTotals({
+      ingredientCost: "100",
+      yieldPercent: "100",
+      wastagePercent: "0",
+      packagingCost: "0",
+      processingCost: "0",
+      labourCost: "0",
+      testingCost: "0",
+      overheadCost: "0",
+      batchSizeUnits: "10", // costPerUnit = 10
+      markupPercent: "25",
+    });
+    expect(totals.costPerUnit.toString()).toBe("10");
+    expect(totals.recommendedSellingPrice?.toString()).toBe("12.5");
+  });
+
   it("rejects a zero or negative batch size", () => {
     expect(() =>
       computeCostSheetTotals({

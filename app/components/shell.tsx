@@ -18,6 +18,12 @@ function linksForRole(role: SessionUser["role"]): NavLink[] {
   if (role === "ADMIN" || role === "PROJECT_LEAD") {
     links.push({ href: "/leads", label: "Leads" }, { href: "/clients", label: "Clients" });
   }
+  // 29 Oct 2026: dedicated Client Portal page (baseline §11) — confirmed
+  // with the user, replacing the dashboard as the Client's primary landing
+  // view, same as a company user's "Leads"/"Clients" links above.
+  if (role === "CLIENT") {
+    links.push({ href: "/portal", label: "Portal" });
+  }
   links.push({ href: "/projects", label: "Projects" });
   if (role === "ADMIN" || role === "PROJECT_LEAD" || role === "NPD_EXECUTIVE") {
     links.push({ href: "/raw-materials", label: "Materials" });
