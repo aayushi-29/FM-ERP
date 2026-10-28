@@ -21,6 +21,12 @@ export default async function Home() {
             Food Monk ERP keeps clients, projects, formulations, trials, and invoicing
             in one place — scoped to exactly what each person on your team is meant to see.
           </p>
+          <div className="fm-hero-chips" role="list">
+            <span className="fm-badge fm-badge-ink" role="listitem">Role-based access</span>
+            <span className="fm-badge fm-badge-ink" role="listitem">Full audit trail</span>
+            <span className="fm-badge fm-badge-ink" role="listitem">Approval workflow</span>
+            <span className="fm-badge fm-badge-ink" role="listitem">Live costing</span>
+          </div>
           <div className="fm-landing-actions">
             <Link href={user ? "/dashboard" : "/login"} className="fm-btn">
               {user ? "Go to your dashboard" : "Sign in"}

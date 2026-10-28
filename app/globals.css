@@ -6,24 +6,33 @@
    ============================================================ */
 
 :root {
-  /* Brand palette — espresso/terracotta/gold/cream from the Food Monk
-     badge logo, deepened and extended with a moss-olive accent and a
-     near-black ink, matched to the reference mood board (deep chocolate
-     panels, warm cream surfaces, olive accent pills, mustard gold
-     details, near-black for high-contrast chips). */
+  /* Brand palette — reskinned to the client's reference (a food-product
+     shoot: near-black ink pill badges/buttons, warm sand/tan surfaces,
+     soft sage-olive accent, a muted dusty-clay as the only warm color
+     left). The logo's bright saturated terracotta is intentionally NOT
+     the primary color anymore (explicit instruction) — --fm-terracotta
+     is kept only as a quiet, rarely-used tertiary accent (e.g. a badge
+     variant), and every primary action (buttons, links, focus, stat
+     numbers) now runs on --fm-ink-black, exactly like the reference's
+     "To cart" / tag-chip treatment. */
   --fm-espresso: #2d1e12;
-  --fm-espresso-ink: #1b1109;
-  --fm-terracotta: #c44a1f;
-  --fm-terracotta-deep: #a53a16;
-  --fm-gold: #d4a62e;
-  --fm-gold-soft: #e8c774;
-  --fm-cream: #f5ead9;
-  --fm-cream-deep: #ead9bb;
-  --fm-olive: #545c38;
-  --fm-olive-deep: #3b4127;
-  --fm-olive-soft: #8b9468;
-  --fm-ink-black: #18120d;
-  --fm-slate: #8a7866;
+  --fm-espresso-ink: #1e1a16;
+  --fm-ink-black: #241f1a;
+  --fm-ink-black-soft: #342c25;
+  --fm-clay: #b97a5c;
+  --fm-clay-deep: #96593f;
+  --fm-terracotta: #b97a5c;
+  --fm-terracotta-deep: #96593f;
+  --fm-gold: #c9a06a;
+  --fm-gold-soft: #ddc39a;
+  --fm-cream: #f3ead9;
+  --fm-cream-deep: #e8dac2;
+  --fm-sand: #ece0cc;
+  --fm-sand-deep: #ddcba7;
+  --fm-olive: #6b7250;
+  --fm-olive-deep: #4d5338;
+  --fm-olive-soft: #959c74;
+  --fm-slate: #847a6c;
 
   /* Semantic */
   --fm-danger: #b4312a;
@@ -223,7 +232,7 @@ p {
 }
 
 a {
-  color: var(--fm-terracotta-deep);
+  color: var(--fm-ink-black);
   text-decoration: none;
   font-weight: 500;
 }
@@ -328,15 +337,16 @@ button, .fm-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
-  background: linear-gradient(180deg, var(--fm-terracotta) 0%, var(--fm-terracotta-deep) 100%);
-  color: #fff6ec;
-  box-shadow: 0 6px 18px -6px rgba(196, 74, 31, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+  background: linear-gradient(180deg, var(--fm-ink-black-soft) 0%, var(--fm-ink-black) 100%);
+  color: var(--fm-cream);
+  box-shadow: 0 6px 18px -6px rgba(36, 31, 26, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 button:hover, .fm-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 22px -6px rgba(196, 74, 31, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  background: linear-gradient(180deg, #3c322a 0%, var(--fm-ink-black-soft) 100%);
+  box-shadow: 0 10px 24px -6px rgba(36, 31, 26, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 button:active, .fm-btn:active {
@@ -400,7 +410,7 @@ input::placeholder, textarea::placeholder {
 
 input:focus, select:focus, textarea:focus {
   background: rgba(255, 255, 255, 0.85);
-  border-color: var(--fm-terracotta);
+  border-color: var(--fm-ink-black-soft);
 }
 
 /* ---------- Tables ---------- */
@@ -466,8 +476,8 @@ li:last-child {
 }
 
 .fm-badge-gold {
-  background: rgba(212, 166, 46, 0.24);
-  color: var(--fm-terracotta-deep);
+  background: rgba(201, 160, 106, 0.3);
+  color: var(--fm-ink-black);
 }
 
 .fm-badge-olive {
@@ -560,8 +570,8 @@ li:last-child {
 }
 
 .fm-cmdk-item-active {
-  background: rgba(196, 74, 31, 0.14);
-  color: var(--fm-terracotta-deep);
+  background: rgba(36, 31, 26, 0.1);
+  color: var(--fm-ink-black);
 }
 
 .fm-cmdk-hint {
@@ -656,8 +666,30 @@ main {
 }
 
 .fm-shell-links a:hover {
-  background: rgba(196, 74, 31, 0.12);
-  color: var(--fm-terracotta-deep) !important;
+  background: rgba(36, 31, 26, 0.08);
+  color: var(--fm-ink-black) !important;
+}
+
+.fm-shell-links a {
+  position: relative;
+}
+
+.fm-shell-links a::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--fm-olive);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s ease;
+}
+
+.fm-shell-links a:hover::after {
+  transform: scaleX(1);
 }
 
 .fm-shell-user {
@@ -769,6 +801,24 @@ main {
   color: var(--fm-text-muted);
   font-size: 1rem;
   margin-top: 4px;
+}
+
+.fm-hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.fm-hero-chips .fm-badge {
+  font-size: 0.78rem;
+  padding: 6px 14px;
+  transition: transform 0.15s ease;
+}
+
+.fm-hero-chips .fm-badge:hover {
+  transform: translateY(-2px);
 }
 
 .fm-landing-actions {
@@ -917,15 +967,33 @@ main {
   padding: 16px 20px;
   min-width: 150px;
   flex: 1 1 150px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fm-stat:hover,
+.fm-section:hover,
+.fm-landing-grid > div:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px -10px rgba(36, 31, 26, 0.28);
+}
+
+.fm-section,
+.fm-landing-grid > div {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .fm-stat-value {
   font-family: var(--font-display);
   font-size: 1.9rem;
   font-weight: 650;
-  color: var(--fm-terracotta-deep);
+  color: var(--fm-ink-black);
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
+  transition: transform 0.2s ease;
+}
+
+.fm-stat:hover .fm-stat-value {
+  transform: scale(1.05);
 }
 
 .fm-stat-warn .fm-stat-value {
