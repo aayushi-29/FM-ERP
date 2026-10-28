@@ -4,6 +4,8 @@ Role-based ERP for Food Monk Innovations: client relationship management, projec
 and task management, new product development (formulations, trials), document
 management, and project-level costing/invoicing.
 
+_Last updated: 28 Oct 2026, 11:19 IST — pushed to confirm `aayushi-29/FM-ERP` is live._
+
 **Status:** Auth, Users, Clients/CRM, and Projects/Tasks/Milestones are
 built. NPD/Formulations, Documents, and Costing/Invoices are not yet — see
 [Build order](#build-order) below.
