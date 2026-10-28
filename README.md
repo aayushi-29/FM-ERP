@@ -4,8 +4,9 @@ Role-based ERP for Food Monk Innovations: client relationship management, projec
 and task management, new product development (formulations, trials), document
 management, and project-level costing/invoicing.
 
-**Status: scaffold stage.** No auth, no modules implemented yet — see
-[Build order](#build-order) below for what's next.
+**Status:** Auth, Users, Clients/CRM, and Projects/Tasks/Milestones are
+built. NPD/Formulations, Documents, and Costing/Invoices are not yet — see
+[Build order](#build-order) below.
 
 ## Stack
 
@@ -18,19 +19,88 @@ This stack was chosen because the repository had no existing code to audit or
 preserve at project start (confirmed empty on 2026-10-28); it's the stack the
 original system-design baseline recommends for a modular-monolith MVP.
 
-## Getting started
+## Getting started (local machine)
+
+**Prerequisites**
+- [Node.js](https://nodejs.org) 20 or later (`node -v` to check)
+- [PostgreSQL](https://www.postgresql.org/download/) 14+ running locally,
+  or a free cloud instance (e.g. [Neon](https://neon.tech) — see the note
+  on `DIRECT_URL` below if you use a pooled provider like Neon/Supabase)
+- Git
+
+**1. Clone the repo**
+
+```bash
+git clone https://github.com/aayushi-29/FM-ERP.git
+cd FM-ERP
+```
+
+**2. Install dependencies**
 
 ```bash
 npm install
-cp .env.example .env   # fill in DATABASE_URL, SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD
+```
+
+**3. Create your local database** (skip if using a cloud provider — just
+grab its connection string instead)
+
+```bash
+createdb fm_erp
+# or, inside psql: CREATE DATABASE fm_erp;
+```
+
+**4. Set up environment variables**
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and fill in:
+- `DATABASE_URL` — your Postgres connection string, e.g.
+  `postgresql://postgres:yourpassword@localhost:5432/fm_erp?schema=public`
+- `DIRECT_URL` — same value as `DATABASE_URL` for plain local Postgres (no
+  pooler). If you're on Neon/Supabase, use their *unpooled* connection
+  string here and the pooled one for `DATABASE_URL`.
+- `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` — your first login (password:
+  10+ characters). Remove both after your first successful seed, below.
+
+**5. Generate the Prisma client and create the database tables**
+
+```bash
 npm run prisma:generate
-npm run prisma:migrate   # creates the database tables from prisma/schema.prisma
-npm run prisma:seed      # creates your first Admin login
+npm run prisma:migrate
+```
+
+`prisma:migrate` will prompt you to name the migration the first time
+(e.g. `init`) — that's expected.
+
+**6. Create your first Admin login**
+
+```bash
+npm run prisma:seed
+```
+
+**7. Run the app**
+
+```bash
 npm run dev
 ```
 
-Then sign in at `/login` with the admin credentials you put in `.env`, and
-remove `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` from it afterwards.
+Open [http://localhost:3000/login](http://localhost:3000/login) and sign in
+with the `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` from step 4. Then remove
+those two lines from `.env` — they're only needed for that one seed run.
+
+**Optional, before you start changing code:**
+
+```bash
+npm run lint
+npm run typecheck
+```
+
+Both should be clean. If `typecheck` shows errors mentioning `Role` not
+exported from `@prisma/client`, step 5 (`prisma:generate`) didn't complete —
+rerun it and check for errors in its output (a bad `DATABASE_URL` is the
+usual cause).
 
 > **Note on this sandbox:** `npm run typecheck` shows a cluster of errors
 > here — all trace back to one cause: this development environment's
