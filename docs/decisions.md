@@ -13,7 +13,7 @@ until that happens.
 | 2 | Multi-user client orgs | Yes — multiple logins per client organization, each scoped to that org only | Accepted |
 | 3 | Formulation approval & reapproval | Draft / In Review / Approved / Rejected; changes to ingredients, quantities, or designated critical process fields trigger a new version + reapproval | Accepted |
 | 4 | Costing formula | Ingredient cost × yield/wastage + packaging/processing/labour/testing/overhead; estimate vs. actual kept separate | **Accepted — needs accountant sign-off on exact formula/rates** |
-| 5 | Payment milestones | Contract-specific, configurable — not a fixed split | Accepted |
+| 5 | Payment milestones | Contract-specific, configurable — not a fixed split | **Superseded 28 Oct 2026 on the "Changed - Working Logic" branch — see note below** |
 | 6 | Invoicing & GST/tax | Configurable invoice numbering; tax rules follow the accountant, never hard-coded | **Accepted — needs accountant sign-off** |
 | 7 | Inventory/lot tracking in MVP | Deferred to Phase 2, per baseline §3 — supplier/material *records* only in MVP, no stock ledger | Decided |
 | 8 | Hosting & file storage | Keep Next.js/Prisma/PostgreSQL; private object storage, no public file URLs; provider TBD | Accepted |
@@ -32,3 +32,39 @@ until that happens.
 6. Core ERP (CRM, projects, NPD, documents, costing, approvals, dashboards) ships and is reliable before any AI/RAG work starts.
 
 Full rationale and the phased roadmap: see the Build Brief artifact shared alongside this repo, and the original baseline document (`Food Monk ERP — System Design & Implementation Baseline`, v1.0).
+
+## Superseding note — "Changed - Working Logic" branch (28 Oct 2026)
+
+A later requirements pass replaced Decision #5's "contract-specific, configurable" payment
+structure with a fixed split, and added several features not covered by the original
+baseline. Decision #5's original row above is kept, not deleted, so the history of why
+the split changed stays visible. The new direction:
+
+- **Payment milestones are now fixed**: 60% advance, 25% after the first sample, 15%
+  before final handover (`PaymentStage` enum; `lib/payments/stage.ts` is the single
+  place the percentages/labels live). An invoice can still be created without a stage
+  for anything ad-hoc — the field is nullable — so this stays backward-compatible with
+  invoices created before the change.
+- **Execution gate**: a project's tasks and trials can't be created until its 60%
+  advance invoice's `Payment` is verified by an Admin (`Project.advancePaymentVerifiedAt`,
+  `lib/projects/execution-gate.ts`). There's still no payment gateway — verification is
+  always a human (Admin) confirming an offline/email acknowledgement, exactly as before;
+  this just gates execution on that confirmation having happened.
+- **In-app notifications**: a `Notification` model and `lib/notifications.ts`'s
+  `notify()` helper fire on invoice creation (when staged) and payment verification, to
+  "company" (Admins + the project's assigned Project Lead/NPD Executive), "client"
+  (active Client users in the project's org), or both. This is in-app only — no email/SMS
+  infra exists or was added for this.
+- **Inventory/supplier UI**: Decision #7 (records only, no stock ledger, deferred to
+  Phase 2) is unchanged — this only adds the UI/API for the `Supplier`/`RawMaterial`
+  records that already existed in the schema but had no routes or pages
+  (`lib/inventory/scope.ts`, `/raw-materials`).
+- **Ingredient COA images**: a new `RawMaterialAttachment` model stores Certificate of
+  Analysis uploads, restricted to image MIME types only (enforced in
+  `app/api/raw-materials/[id]/attachments/route.ts`, not the schema).
+- **Client rework requests**: a `RevisionRequest` model lets a Client ask for a change
+  on an **APPROVED** formulation version without mutating it (still immutable per
+  Decision #3). NPD/Admin addresses it through the existing revise flow, which can link
+  the new version back to the request.
+- **Trial sheets**: now rendered as an HTML table instead of a list (no behavior change
+  to the existing create/update/attach/remove actions).

@@ -3,9 +3,11 @@ import Link from "next/link";
 import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { getProjectIdForFormulationVersion, CLIENT_SAFE_VERSION_SELECT } from "@/lib/npd/scope";
+import { isExecutionUnlocked } from "@/lib/projects/execution-gate";
 import { IngredientLines } from "./ingredient-lines";
 import { TrialsSection } from "./trials-section";
 import { VersionActions } from "./version-actions";
+import { RevisionRequestsSection } from "./revision-requests-section";
 
 export default async function FormulationVersionPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();
@@ -23,6 +25,19 @@ export default async function FormulationVersionPage({ params }: { params: { id:
     });
     if (!version) notFound();
 
+    const revisionRequests = await prisma.revisionRequest.findMany({
+      where: { formulationVersionId: params.id },
+      select: {
+        id: true,
+        notes: true,
+        status: true,
+        createdAt: true,
+        addressedAt: true,
+        requestedBy: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
     return (
       <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 600 }}>
         <h1>{version.formulation.product.name} — {version.formulation.name}</h1>
@@ -30,6 +45,20 @@ export default async function FormulationVersionPage({ params }: { params: { id:
           Version {version.versionNumber} · Approved
           {version.decidedAt ? ` on ${new Date(version.decidedAt).toLocaleDateString()}` : ""}
         </p>
+
+        <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Rework requests</h2>
+        <RevisionRequestsSection
+          versionId={version.id}
+          revisionRequests={revisionRequests.map((r) => ({
+            id: r.id,
+            notes: r.notes,
+            status: r.status,
+            createdAt: r.createdAt.toISOString(),
+            addressedAt: r.addressedAt ? r.addressedAt.toISOString() : null,
+            requestedBy: r.requestedBy,
+          }))}
+          canFile
+        />
       </main>
     );
   }
@@ -54,9 +83,22 @@ export default async function FormulationVersionPage({ params }: { params: { id:
       },
       approvals: { include: { approver: { select: { id: true, name: true } } }, orderBy: { decidedAt: "desc" } },
       nextVersions: { select: { id: true } },
+      revisionRequests: {
+        select: {
+          id: true,
+          notes: true,
+          status: true,
+          createdAt: true,
+          addressedAt: true,
+          requestedBy: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
   if (!version) notFound();
+
+  const openRevisionRequest = version.revisionRequests.find((r) => r.status === "OPEN") ?? null;
 
   // Project documents available to attach to a trial — only the id/type
   // (enough to label a dropdown option and link to the full document
@@ -71,7 +113,8 @@ export default async function FormulationVersionPage({ params }: { params: { id:
   const canDecide = user.role === "ADMIN" || user.role === "PROJECT_LEAD";
   const canRevise = canEditDraft && version.nextVersions.length === 0;
   const linesEditable = canEditDraft && version.status === "DRAFT";
-  const trialsCreatable = canEditDraft; // scope narrows per-trial to the conductor
+  const executionUnlocked = await isExecutionUnlocked(projectId);
+  const trialsCreatable = canEditDraft && executionUnlocked; // scope narrows per-trial to the conductor
 
   return (
     <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 760 }}>
@@ -97,6 +140,7 @@ export default async function FormulationVersionPage({ params }: { params: { id:
         canEdit={canEditDraft}
         canDecide={canDecide}
         canRevise={canRevise}
+        openRevisionRequestId={openRevisionRequest?.id ?? null}
       />
 
       {version.approvals.length > 0 ? (
@@ -110,6 +154,24 @@ export default async function FormulationVersionPage({ params }: { params: { id:
               </li>
             ))}
           </ul>
+        </>
+      ) : null}
+
+      {version.revisionRequests.length > 0 ? (
+        <>
+          <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Rework requests</h2>
+          <RevisionRequestsSection
+            versionId={version.id}
+            revisionRequests={version.revisionRequests.map((r) => ({
+              id: r.id,
+              notes: r.notes,
+              status: r.status,
+              createdAt: r.createdAt.toISOString(),
+              addressedAt: r.addressedAt ? r.addressedAt.toISOString() : null,
+              requestedBy: r.requestedBy,
+            }))}
+            canFile={false}
+          />
         </>
       ) : null}
 
@@ -131,6 +193,12 @@ export default async function FormulationVersionPage({ params }: { params: { id:
       />
 
       <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Trials</h2>
+      {canEditDraft && !executionUnlocked ? (
+        <p style={{ color: "#b00020", fontSize: ".85rem", marginBottom: 8 }}>
+          Locked: the 60% advance payment hasn&apos;t been verified yet, so new trials can&apos;t
+          be logged on this project.
+        </p>
+      ) : null}
       <TrialsSection
         versionId={version.id}
         trials={version.trials.map((t) => ({

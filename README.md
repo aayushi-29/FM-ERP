@@ -692,3 +692,42 @@ See [`docs/decisions.md`](docs/decisions.md) for the full list. In short:
 exactly 4 roles (Admin, Project Lead, NPD Executive, Client), versioned and
 immutable-once-approved formulations, decimal (never float) money fields, and
 inventory/procurement intentionally left out of this phase.
+
+## "Changed - Working Logic" branch additions
+
+A later requirements pass added the following on top of everything above —
+see [`docs/decisions.md`](docs/decisions.md)'s superseding note for the full
+rationale, and the inline comments in the files below for the detail:
+
+- **Fixed 60/25/15 payment stages** (`PaymentStage` on `Invoice`,
+  `lib/payments/stage.ts`), replacing the old free-form per-contract split.
+  An invoice can still omit a stage for anything ad-hoc.
+- **Execution gate**: a project's tasks and trials can't be created until an
+  Admin verifies the Payment on its 60% advance invoice
+  (`Project.advancePaymentVerifiedAt`, `lib/projects/execution-gate.ts`).
+  There's still no payment gateway — this is always a human confirming an
+  offline/email acknowledgement.
+- **In-app notifications** (`Notification` model, `lib/notifications.ts`) —
+  fired on staged-invoice creation and payment verification, to the company
+  side, the client side, or both. A bell in the top nav
+  (`app/components/notification-bell.tsx`) polls every 30s; there is no
+  email/SMS transport.
+- **Supplier/raw-material UI** at `/raw-materials` (`lib/inventory/scope.ts`)
+  — the `Supplier`/`RawMaterial` records already existed in the schema but
+  had no routes or pages before this. Still records-only, per Decision #7 —
+  no stock ledger.
+- **Ingredient COA image uploads** (`RawMaterialAttachment`) — restricted to
+  image MIME types only, enforced in
+  `app/api/raw-materials/[id]/attachments/route.ts`.
+- **Client rework requests** (`RevisionRequest`) — a Client can ask for a
+  change on an **APPROVED** formulation version without mutating it; NPD/
+  Admin addresses it through the existing revise flow.
+- **Trial sheets** render as a table instead of a list
+  (`app/formulation-versions/[id]/trials-section.tsx`) — same underlying
+  create/update/attach/remove actions, unchanged.
+
+None of this touches the schema fields, routes, or UI the rest of the app
+already relied on — every change above is additive (new nullable columns,
+new models, new routes) or scoped to a single route's new behavior (the
+execution gate only blocks *creating* a task/trial; it doesn't block reading
+or updating existing ones).

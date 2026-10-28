@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole, assertProjectAccess, ForbiddenError } from "@/lib/auth/rbac";
 import { getProjectIdForFormulationVersion, assertFound } from "@/lib/npd/scope";
 import { logProjectActivity } from "@/lib/projects/activity";
 import { isSameOrigin } from "@/lib/security/origin";
-import { errorResponse } from "@/lib/api/respond";
+import { errorResponse, ValidationError } from "@/lib/api/respond";
+
+const reviseSchema = z.object({
+  // "Changed - Working Logic" branch: optionally mark an OPEN
+  // RevisionRequest as ADDRESSED by this new version, in the same
+  // transaction that creates it. Omit for a revision not prompted by a
+  // client rework request (e.g. an internal correction).
+  addressesRequestId: z.string().cuid().optional(),
+});
 
 // Baseline §7: "Formulation versions are immutable after publication/
 // approval; revisions create new versions." Rather than ever un-finalizing
@@ -35,6 +44,23 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
     if (version.nextVersions.length > 0) {
       throw new ForbiddenError("A newer version already exists — revise that one instead");
+    }
+
+    const json = await request.json().catch(() => ({}));
+    const input = reviseSchema.parse(json ?? {});
+
+    let revisionRequest: { id: string; status: string; formulationVersionId: string } | null = null;
+    if (input.addressesRequestId) {
+      revisionRequest = await prisma.revisionRequest.findUnique({
+        where: { id: input.addressesRequestId },
+        select: { id: true, status: true, formulationVersionId: true },
+      });
+      if (!revisionRequest || revisionRequest.formulationVersionId !== version.id) {
+        throw new ValidationError("addressesRequestId must be an open rework request on this version");
+      }
+      if (revisionRequest.status !== "OPEN") {
+        throw new ValidationError("That rework request has already been addressed");
+      }
     }
 
     const revised = await prisma.$transaction(async (tx) => {
@@ -71,6 +97,13 @@ export async function POST(request: Request, { params }: { params: { id: string 
         },
         tx
       );
+
+      if (revisionRequest) {
+        await tx.revisionRequest.update({
+          where: { id: revisionRequest.id },
+          data: { status: "ADDRESSED", addressedVersionId: created.id, addressedAt: new Date() },
+        });
+      }
 
       return created;
     });

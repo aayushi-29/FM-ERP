@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { canReadCosting, canManageCosting, canManageInvoices, isInvoiceVisibleToClient } from "@/lib/costing/scope";
+import { PAYMENT_STAGE_LABEL } from "@/lib/payments/stage";
 import { NewCostSheetForm } from "./new-cost-sheet-form";
 import { NewExpenseForm } from "./new-expense-form";
 import { NewInvoiceForm } from "./new-invoice-form";
@@ -42,7 +43,7 @@ export default async function CostingPage({ params }: { params: { id: string } }
       : Promise.resolve([]),
     prisma.invoice.findMany({
       where: { projectId: params.id },
-      select: { id: true, invoiceNumber: true, milestoneLabel: true, amount: true, currency: true, status: true, dueDate: true },
+      select: { id: true, invoiceNumber: true, milestoneLabel: true, paymentStage: true, amount: true, currency: true, status: true, dueDate: true },
       orderBy: { createdAt: "desc" },
     }),
     canSeeCosting
@@ -128,6 +129,7 @@ export default async function CostingPage({ params }: { params: { id: string } }
               <Link href={`/invoices/${inv.id}`}>{inv.invoiceNumber}</Link>
               <span style={{ color: "#777" }}>
                 {" · "}{inv.status} · {inv.amount.toString()} {inv.currency}
+                {inv.paymentStage ? ` · ${PAYMENT_STAGE_LABEL[inv.paymentStage]}` : ""}
                 {inv.milestoneLabel ? ` · ${inv.milestoneLabel}` : ""}
                 {inv.dueDate ? ` · due ${new Date(inv.dueDate).toLocaleDateString()}` : ""}
               </span>

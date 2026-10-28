@@ -65,6 +65,11 @@ model User {
   auditEntries       AuditLog[]        @relation("AuditActor")
   sessions           Session[]
 
+  // "Changed - Working Logic" branch additions.
+  notifications                   Notification[]           @relation("NotificationRecipient")
+  revisionRequestsFiled           RevisionRequest[]        @relation("RevisionRequester")
+  rawMaterialAttachmentsUploaded  RawMaterialAttachment[]   @relation("RawMaterialAttachmentUploader")
+
   @@index([clientOrgId])
 }
 
@@ -167,6 +172,17 @@ model Project {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
+  // Decision #5 (superseded, "Changed - Working Logic" branch): payment
+  // milestones are now a fixed 60/25/15 split (see PaymentStage below),
+  // not a free-form per-contract split — and the 60% advance specifically
+  // gates execution. Null = advance not yet verified = tasks/trials can't
+  // be created on this project (lib/projects/execution-gate.ts). Set the
+  // moment an ADMIN verifies the Payment on the project's ADVANCE_60
+  // invoice (app/api/payments/[id]/verify/route.ts) — never set directly
+  // by a client action, since there's no payment gateway: verification is
+  // always a human (Admin) confirming an offline/email acknowledgement.
+  advancePaymentVerifiedAt DateTime?
+
   assignments ProjectAssignment[]
   tasks       Task[]
   milestones  Milestone[]
@@ -176,6 +192,7 @@ model Project {
   invoices    Invoice[]
   expenses    ProjectExpense[]
   activity    ProjectActivity[]
+  notifications Notification[]
 
   @@index([clientOrgId])
   @@index([leadId])
@@ -294,6 +311,14 @@ model FormulationVersion {
   trials          Trial[]
   costSheets      CostSheet[]
   approvals       Approval[]
+  // "After approval add rework section when client changes their
+  // requirements" — a Client can only file a RevisionRequest against an
+  // APPROVED version (app/api/formulation-versions/[id]/revision-requests
+  // /route.ts); it doesn't mutate this version (still immutable per
+  // Decision #3) — NPD/Admin responds with the existing revise flow,
+  // optionally linking the new version back here via addressedVersionId.
+  revisionRequests         RevisionRequest[] @relation("RevisionRequestForVersion")
+  addressedRevisionRequest RevisionRequest?  @relation("RevisionRequestAddressed")
 
   @@unique([formulationId, versionNumber])
   @@index([formulationId])
@@ -490,12 +515,24 @@ enum InvoiceStatus {
   CANCELLED
 }
 
-// Decision #5: milestones are contract-specific and configurable — this is
-// NOT a fixed 60/25/15 split, it's a per-invoice configurable row
-// (milestoneLabel is free text, not a foreign key to the Milestone model —
-// an invoice's payment milestone and a project's delivery Milestone are
-// related concepts but not forced to be the same record, since contracts
-// don't always split the two the same way).
+// Decision #5, superseded on the "Changed - Working Logic" branch: the
+// payment structure is now a fixed 60% advance / 25% after the first
+// sample / 15% before final handover, not a free-form per-contract split.
+// paymentStage is nullable on Invoice below so an ad-hoc/non-staged
+// invoice (e.g. a one-off expense reimbursement) remains representable,
+// and so this stays backward-compatible with any invoice created before
+// this change. lib/payments/stage.ts is the single place the 60/25/15
+// percentages and display labels live.
+enum PaymentStage {
+  ADVANCE_60
+  SECOND_25
+  FINAL_15
+}
+
+// Decision #5 (original wording, now superseded — see PaymentStage above):
+// milestones were contract-specific and configurable; milestoneLabel
+// (free text, not a foreign key to the Milestone model) is kept for
+// display and for any invoice that isn't one of the three fixed stages.
 model Invoice {
   id             String   @id @default(cuid())
   projectId      String
@@ -509,6 +546,13 @@ model Invoice {
   // until a real policy is confirmed).
   invoiceNumber  String   @unique
   milestoneLabel String?
+  // Null = not one of the fixed stages (e.g. a one-off/ad-hoc invoice).
+  // One invoice per stage per project is enforced in code, not the schema
+  // (app/api/projects/[id]/invoices/route.ts), since "one ADVANCE_60 per
+  // project" isn't expressible as a plain unique constraint without also
+  // scoping it to projectId, and a partial/conditional unique index is
+  // more schema complexity than this needs right now.
+  paymentStage   PaymentStage?
   // Both stored explicitly, never computed by applying a hardcoded GST
   // rate — Decision #6: "tax rules follow the accountant, never
   // hard-coded." subtotal is the sum of this invoice's lines at creation
@@ -595,8 +639,84 @@ model RawMaterial {
   defaultCostPerUnit Decimal? @db.Decimal(14, 4)
 
   ingredientLines IngredientLine[]
+  attachments     RawMaterialAttachment[]
 
   @@index([supplierId])
+}
+
+// Ingredient Certificate of Analysis, image-only (enforced in the upload
+// route, not the schema — see app/api/raw-materials/[id]/attachments
+// /route.ts). Deliberately its own small model rather than reusing
+// Document: Document.projectId is required and a RawMaterial is a
+// company-wide catalog entry, not scoped to one project, so forcing it
+// through Document would mean making projectId optional everywhere else
+// that depends on it being set — a much bigger, riskier change for what
+// is otherwise a simple "attach an image to a record" need.
+model RawMaterialAttachment {
+  id            String      @id @default(cuid())
+  rawMaterialId String
+  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  storageKey    String
+  fileName      String
+  fileSizeBytes Int
+  uploadedById  String
+  uploadedBy    User        @relation("RawMaterialAttachmentUploader", fields: [uploadedById], references: [id])
+  uploadedAt    DateTime    @default(now())
+
+  @@index([rawMaterialId])
+}
+
+// In-app only — no email/SMS infra exists or is being built on this branch.
+// "It should show notifications for client and company both" (payment
+// events) is satisfied by writing one row per recipient via lib/notifications
+// .ts's notify() helper, which resolves "company" to Admins + the project's
+// assigned Project Lead/NPD Executive, and "client" to the active CLIENT
+// users in the project's ClientOrganization. projectId is optional so a
+// notification can still exist if it's ever needed outside a project
+// context, but every notification created on this branch sets it.
+model Notification {
+  id          String    @id @default(cuid())
+  recipientId String
+  recipient   User      @relation("NotificationRecipient", fields: [recipientId], references: [id])
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id])
+  type        String
+  message     String
+  link        String?
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  @@index([recipientId, isRead])
+  @@index([projectId])
+}
+
+// "After approval add rework section when client changes their
+// requirements." Filed by a CLIENT against an APPROVED FormulationVersion
+// (app/api/formulation-versions/[id]/revision-requests/route.ts). Does not
+// mutate that version — approved versions stay immutable per Decision #3.
+// NPD/Admin addresses it through the existing revise flow
+// (app/api/formulation-versions/[id]/revise/route.ts), which can optionally
+// link the new version back here via addressedVersionId, flipping status to
+// ADDRESSED in the same transaction.
+enum RevisionRequestStatus {
+  OPEN
+  ADDRESSED
+}
+
+model RevisionRequest {
+  id                   String                 @id @default(cuid())
+  formulationVersionId String
+  formulationVersion   FormulationVersion     @relation("RevisionRequestForVersion", fields: [formulationVersionId], references: [id])
+  requestedById        String
+  requestedBy          User                   @relation("RevisionRequester", fields: [requestedById], references: [id])
+  notes                String
+  status               RevisionRequestStatus  @default(OPEN)
+  addressedVersionId   String?                @unique
+  addressedVersion     FormulationVersion?    @relation("RevisionRequestAddressed", fields: [addressedVersionId], references: [id])
+  createdAt            DateTime               @default(now())
+  addressedAt          DateTime?
+
+  @@index([formulationVersionId])
 }
 
 // ---------- Governance ----------

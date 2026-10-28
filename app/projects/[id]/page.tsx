@@ -31,6 +31,12 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           {project.targetDate ? ` · target ${new Date(project.targetDate).toLocaleDateString()}` : ""}
           {project.lead ? ` · led by ${project.lead.name}` : ""}
         </p>
+        {!project.advancePaymentVerifiedAt ? (
+          <div className="fm-advance-banner" role="status">
+            Work on this project starts once your 60% advance payment is verified.
+            You&apos;ll see a notification here as soon as that happens.
+          </div>
+        ) : null}
         <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Milestones</h2>
         <MilestoneList
           milestones={project.milestones.map((m) => ({
@@ -90,6 +96,19 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         {" · led by "}{project.lead.name}
       </p>
 
+      {!project.advancePaymentVerifiedAt ? (
+        <div className="fm-advance-banner" role="status">
+          Locked: the 60% advance payment hasn&apos;t been verified yet, so tasks and trials
+          can&apos;t be created on this project.
+          {user.role === "ADMIN" ? (
+            <>
+              {" "}
+              <Link href={`/projects/${project.id}/costing`}>Go verify the advance invoice →</Link>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
       <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Team</h2>
       <ul>
         {project.assignments.map((a) => (
@@ -108,7 +127,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           dueDate: t.dueDate ? t.dueDate.toISOString() : null,
         }))}
       />
-      {canManage ? (
+      {canManage && project.advancePaymentVerifiedAt ? (
         <div style={{ marginTop: 10 }}>
           <NewTaskForm
             projectId={project.id}

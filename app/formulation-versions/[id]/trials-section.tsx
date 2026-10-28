@@ -134,72 +134,94 @@ export function TrialsSection({
       {trials.length === 0 ? (
         <p style={{ color: "#777" }}>No trials logged yet.</p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {trials.map((t) => (
-            <li key={t.id} style={{ padding: "8px 0", borderBottom: "1px solid #eee" }}>
-              <span style={{ fontWeight: 600 }}>{t.status}</span>
-              <span style={{ color: "#777", fontSize: ".85rem" }}>
-                {" · logged "}{new Date(t.conductedAt).toLocaleDateString()}
-              </span>
-              {t.parameters ? <p style={{ margin: "4px 0 0", fontSize: ".9rem" }}>{t.parameters}</p> : null}
-              {t.results ? <p style={{ margin: "2px 0 0", fontSize: ".9rem", color: "#555" }}>Results: {t.results}</p> : null}
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: ".88rem" }}>
+            <thead>
+              <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
+                <th style={{ padding: "6px 8px" }}>Status</th>
+                <th style={{ padding: "6px 8px" }}>Parameters</th>
+                <th style={{ padding: "6px 8px" }}>Results</th>
+                <th style={{ padding: "6px 8px" }}>Conducted</th>
+                <th style={{ padding: "6px 8px" }}>Attachments</th>
+                <th style={{ padding: "6px 8px" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trials.map((t) => (
+                <tr key={t.id} style={{ borderBottom: "1px solid #eee", verticalAlign: "top" }}>
+                  <td style={{ padding: "8px" }}>
+                    <span style={{ fontWeight: 600 }}>{t.status}</span>
+                  </td>
+                  <td style={{ padding: "8px", maxWidth: 220 }}>{t.parameters ?? "—"}</td>
+                  <td style={{ padding: "8px", maxWidth: 220, color: "#555" }}>{t.results ?? "—"}</td>
+                  <td style={{ padding: "8px", color: "#777", whiteSpace: "nowrap" }}>
+                    {new Date(t.conductedAt).toLocaleDateString()}
+                  </td>
+                  <td style={{ padding: "8px" }}>
+                    {t.attachments.length > 0 ? (
+                      <ul style={{ margin: 0, paddingLeft: 16, fontSize: ".85rem" }}>
+                        {t.attachments.map((a) => (
+                          <li key={a.id}>
+                            {a.document.type}
+                            {canCreate ? (
+                              <button
+                                onClick={() => removeAttachment(a.id)}
+                                disabled={removingAttachmentId === a.id}
+                                style={{ marginLeft: 8, fontSize: ".78rem", padding: "1px 6px" }}
+                              >
+                                {removingAttachmentId === a.id ? "…" : "Remove"}
+                              </button>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      "—"
+                    )}
 
-              {t.attachments.length > 0 ? (
-                <ul style={{ margin: "6px 0 0", paddingLeft: 16, fontSize: ".85rem" }}>
-                  {t.attachments.map((a) => (
-                    <li key={a.id}>
-                      {a.document.type}
-                      {canCreate ? (
-                        <button
-                          onClick={() => removeAttachment(a.id)}
-                          disabled={removingAttachmentId === a.id}
-                          style={{ marginLeft: 8, fontSize: ".78rem", padding: "1px 6px" }}
+                    {canCreate && t.conductedById === currentUserId ? (
+                      <div style={{ marginTop: 6, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                        <select
+                          value={selectedDocByTrial[t.id] ?? ""}
+                          onChange={(e) => setSelectedDocByTrial((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                          style={{ fontSize: ".82rem", padding: "2px 4px" }}
                         >
-                          {removingAttachmentId === a.id ? "…" : "Remove"}
+                          <option value="">Attach a document…</option>
+                          {projectDocuments
+                            .filter((d) => !t.attachments.some((a) => a.document.id === d.id))
+                            .map((d) => (
+                              <option key={d.id} value={d.id}>
+                                {d.type}
+                              </option>
+                            ))}
+                        </select>
+                        <button
+                          onClick={() => attachDocument(t)}
+                          disabled={attachingId === t.id || !selectedDocByTrial[t.id]}
+                          style={{ fontSize: ".82rem", padding: "2px 8px" }}
+                        >
+                          {attachingId === t.id ? "…" : "Attach"}
                         </button>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-
-              {canCreate && t.conductedById === currentUserId ? (
-                <div style={{ marginTop: 6, display: "flex", gap: 6, alignItems: "center" }}>
-                  <select
-                    value={selectedDocByTrial[t.id] ?? ""}
-                    onChange={(e) => setSelectedDocByTrial((prev) => ({ ...prev, [t.id]: e.target.value }))}
-                    style={{ fontSize: ".82rem", padding: "2px 4px" }}
-                  >
-                    <option value="">Attach a document…</option>
-                    {projectDocuments
-                      .filter((d) => !t.attachments.some((a) => a.document.id === d.id))
-                      .map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.type}
-                        </option>
-                      ))}
-                  </select>
-                  <button
-                    onClick={() => attachDocument(t)}
-                    disabled={attachingId === t.id || !selectedDocByTrial[t.id]}
-                    style={{ fontSize: ".82rem", padding: "2px 8px" }}
-                  >
-                    {attachingId === t.id ? "…" : "Attach"}
-                  </button>
-                </div>
-              ) : null}
-
-              {canCreate && t.conductedById === currentUserId && t.status !== "COMPLETE" ? (
-                <div style={{ marginTop: 6, display: "flex", gap: 6 }}>
-                  {t.status === "PLANNED" ? (
-                    <button disabled={updatingId === t.id} onClick={() => updateStatus(t, "IN_PROGRESS")}>Start</button>
-                  ) : null}
-                  <button disabled={updatingId === t.id} onClick={() => updateStatus(t, "COMPLETE")}>Mark complete</button>
-                </div>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+                      </div>
+                    ) : null}
+                  </td>
+                  <td style={{ padding: "8px", whiteSpace: "nowrap" }}>
+                    {canCreate && t.conductedById === currentUserId && t.status !== "COMPLETE" ? (
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {t.status === "PLANNED" ? (
+                          <button disabled={updatingId === t.id} onClick={() => updateStatus(t, "IN_PROGRESS")}>Start</button>
+                        ) : null}
+                        <button disabled={updatingId === t.id} onClick={() => updateStatus(t, "COMPLETE")}>Mark complete</button>
+                      </div>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {canCreate ? (

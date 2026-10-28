@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole, assertProjectAccess, ForbiddenError } from "@/lib/auth/rbac";
 import { logAudit } from "@/lib/audit";
+import { notify } from "@/lib/notifications";
+import { PAYMENT_STAGE_LABEL } from "@/lib/payments/stage";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse } from "@/lib/api/respond";
 
@@ -22,7 +24,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     const payment = await prisma.payment.findUnique({
       where: { id: params.id },
-      include: { invoice: { select: { projectId: true } } },
+      include: { invoice: { select: { projectId: true, paymentStage: true } } },
     });
     if (!payment) return NextResponse.json({ error: "Not found" }, { status: 404 });
     await assertProjectAccess(actor, payment.invoice.projectId);
@@ -30,6 +32,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
     if (payment.verifiedById) {
       throw new ForbiddenError("This payment is already verified");
     }
+
+    const projectId = payment.invoice.projectId;
+    const stage = payment.invoice.paymentStage;
+    const stageLabel = stage ? PAYMENT_STAGE_LABEL[stage] : null;
 
     const updated = await prisma.$transaction(async (tx) => {
       const result = await tx.payment.update({ where: { id: params.id }, data: { verifiedById: actor.id } });
@@ -43,6 +49,34 @@ export async function POST(request: Request, { params }: { params: { id: string 
         },
         tx
       );
+
+      // "the admin will mark that 60% is received" — this is that moment:
+      // verifying the Payment on the project's ADVANCE_60 invoice unlocks
+      // task/trial creation (lib/projects/execution-gate.ts). Only ever set
+      // here, never by a client action, since there's no payment gateway.
+      if (stage === "ADVANCE_60") {
+        await tx.project.update({
+          where: { id: projectId },
+          data: { advancePaymentVerifiedAt: new Date() },
+        });
+      }
+
+      if (stageLabel) {
+        await notify(
+          {
+            projectId,
+            audience: "both",
+            type: "payment.verified",
+            message:
+              stage === "ADVANCE_60"
+                ? `The ${stageLabel} has been verified — work on this project can now begin.`
+                : `The ${stageLabel} has been verified.`,
+            link: `/projects/${projectId}/costing`,
+          },
+          tx
+        );
+      }
+
       return result;
     });
 

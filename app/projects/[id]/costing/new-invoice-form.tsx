@@ -5,9 +5,17 @@ import { useRouter } from "next/navigation";
 
 type Line = { description: string; amount: string };
 
+const PAYMENT_STAGE_OPTIONS = [
+  { value: "", label: "Not a staged payment" },
+  { value: "ADVANCE_60", label: "60% advance" },
+  { value: "SECOND_25", label: "25% after first sample" },
+  { value: "FINAL_15", label: "15% before final handover" },
+] as const;
+
 export function NewInvoiceForm({ projectId }: { projectId: string }) {
   const router = useRouter();
   const [milestoneLabel, setMilestoneLabel] = useState("");
+  const [paymentStage, setPaymentStage] = useState<string>("");
   const [taxAmount, setTaxAmount] = useState("0");
   const [dueDate, setDueDate] = useState("");
   const [lines, setLines] = useState<Line[]>([{ description: "", amount: "" }]);
@@ -33,6 +41,7 @@ export function NewInvoiceForm({ projectId }: { projectId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           milestoneLabel: milestoneLabel || undefined,
+          paymentStage: paymentStage || undefined,
           taxAmount: taxAmount || "0",
           dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
           lines: cleanLines,
@@ -57,6 +66,21 @@ export function NewInvoiceForm({ projectId }: { projectId: string }) {
       <label>
         Milestone label (optional)
         <input value={milestoneLabel} onChange={(e) => setMilestoneLabel(e.target.value)} style={{ display: "block", width: "100%", padding: 6 }} />
+      </label>
+
+      <label>
+        Payment stage
+        <select
+          value={paymentStage}
+          onChange={(e) => setPaymentStage(e.target.value)}
+          style={{ display: "block", width: "100%", padding: 6 }}
+        >
+          {PAYMENT_STAGE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </label>
 
       <div>

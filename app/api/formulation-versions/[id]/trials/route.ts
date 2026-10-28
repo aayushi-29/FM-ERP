@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, assertProjectAccess } from "@/lib/auth/rbac";
 import { getProjectIdForFormulationVersion, assertFound } from "@/lib/npd/scope";
 import { logProjectActivity } from "@/lib/projects/activity";
+import { assertExecutionUnlocked } from "@/lib/projects/execution-gate";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse } from "@/lib/api/respond";
 
@@ -64,6 +65,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const actor = await requireRole(["ADMIN", "NPD_EXECUTIVE"]);
     const projectId = assertFound(await getProjectIdForFormulationVersion(params.id), "Not found");
     await assertProjectAccess(actor, projectId);
+    await assertExecutionUnlocked(projectId);
 
     const json = await request.json().catch(() => null);
     const input = createTrialSchema.parse(json);

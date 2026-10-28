@@ -7,8 +7,10 @@ import { canReadInvoices, canManageInvoices, isInvoiceVisibleToClient } from "@/
 import { generateInvoiceNumber } from "@/lib/invoices/numbering";
 import { logAudit } from "@/lib/audit";
 import { logProjectActivity } from "@/lib/projects/activity";
+import { notify } from "@/lib/notifications";
+import { PAYMENT_STAGE_LABEL } from "@/lib/payments/stage";
 import { isSameOrigin } from "@/lib/security/origin";
-import { errorResponse } from "@/lib/api/respond";
+import { errorResponse, ValidationError } from "@/lib/api/respond";
 
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   try {
@@ -19,7 +21,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     const invoices = await prisma.invoice.findMany({
       where: { projectId: params.id },
       select: {
-        id: true, invoiceNumber: true, milestoneLabel: true, subtotal: true, taxAmount: true,
+        id: true, invoiceNumber: true, milestoneLabel: true, paymentStage: true, subtotal: true, taxAmount: true,
         amount: true, currency: true, dueDate: true, status: true, createdAt: true,
         payments: { select: { amount: true } },
         creditNotes: { select: { amount: true } },
@@ -44,6 +46,11 @@ const lineSchema = z.object({
 
 const createInvoiceSchema = z.object({
   milestoneLabel: z.string().max(200).optional(),
+  // "Changed - Working Logic" branch: optionally tag this invoice as one of
+  // the three fixed payment stages (lib/payments/stage.ts). Omit for an
+  // ad-hoc/non-staged invoice — see the PaymentStage field comment in
+  // schema.prisma.
+  paymentStage: z.enum(["ADVANCE_60", "SECOND_25", "FINAL_15"]).optional(),
   // Decision #6: tax is an explicit figure supplied here, never a
   // hardcoded rate applied in code.
   taxAmount: decimalString.default("0"),
@@ -65,6 +72,18 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const json = await request.json().catch(() => null);
     const input = createInvoiceSchema.parse(json);
 
+    if (input.paymentStage) {
+      const existing = await prisma.invoice.findFirst({
+        where: { projectId: params.id, paymentStage: input.paymentStage },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new ValidationError(
+          `This project already has a ${PAYMENT_STAGE_LABEL[input.paymentStage]} invoice`
+        );
+      }
+    }
+
     const subtotal = input.lines.reduce((sum, l) => sum.add(new Decimal(l.amount)), new Decimal(0));
     const taxAmount = new Decimal(input.taxAmount);
     const amount = subtotal.add(taxAmount);
@@ -78,6 +97,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
           createdById: actor.id,
           invoiceNumber,
           milestoneLabel: input.milestoneLabel,
+          paymentStage: input.paymentStage,
           subtotal,
           taxAmount,
           amount,
@@ -102,6 +122,18 @@ export async function POST(request: Request, { params }: { params: { id: string 
         { projectId: params.id, actorId: actor.id, summary: `Invoice ${invoiceNumber} drafted: ${amount} ${input.currency}` },
         tx
       );
+      if (input.paymentStage) {
+        await notify(
+          {
+            projectId: params.id,
+            audience: "both",
+            type: "invoice.staged",
+            message: `Invoice ${invoiceNumber} raised for the ${PAYMENT_STAGE_LABEL[input.paymentStage]} (${amount} ${input.currency}).`,
+            link: `/projects/${params.id}/costing`,
+          },
+          tx
+        );
+      }
 
       return created;
     });

@@ -490,6 +490,26 @@ li:last-child {
   color: var(--fm-cream);
 }
 
+/* ---------- Execution-gate banner ---------- */
+/* "Changed - Working Logic" branch: shown on a project's page while
+   advancePaymentVerifiedAt is null — the 60% advance hasn't been verified
+   yet, so task/trial creation is blocked (lib/projects/execution-gate.ts). */
+.fm-advance-banner {
+  margin-top: 14px;
+  padding: 12px 16px;
+  border-radius: var(--fm-radius-sm, 10px);
+  background: var(--fm-danger-bg);
+  color: var(--fm-danger);
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.fm-advance-banner a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 /* ---------- Command palette ---------- */
 .fm-cmdk-trigger {
   position: fixed;
@@ -715,6 +735,104 @@ main {
 .fm-shell-user button {
   padding: 7px 16px;
   font-size: 0.82rem;
+}
+
+/* ---------- Notification bell ---------- */
+.fm-notif-trigger {
+  position: relative;
+  background: transparent;
+  border: none;
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: 6px;
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.fm-notif-trigger:hover {
+  background: rgba(36, 31, 26, 0.06);
+}
+
+.fm-notif-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: var(--fm-danger);
+  color: white;
+  font-size: 0.62rem;
+  font-weight: 700;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fm-notif-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 320px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 14px;
+  z-index: 60;
+}
+
+.fm-notif-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.fm-notif-markall {
+  background: transparent;
+  border: none;
+  color: var(--fm-olive-deep, var(--fm-ink-black));
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.fm-notif-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fm-notif-item {
+  padding: 8px 6px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fm-notif-item a,
+.fm-notif-item span:first-child {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.fm-notif-item-unread {
+  background: rgba(201, 160, 106, 0.16);
+  font-weight: 600;
+}
+
+.fm-notif-time {
+  font-size: 0.7rem;
+  color: var(--fm-text-muted);
 }
 
 .fm-shell-main {

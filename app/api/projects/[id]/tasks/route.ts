@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, assertProjectAccess } from "@/lib/auth/rbac";
 import { logProjectActivity } from "@/lib/projects/activity";
 import { assertDueDateWithinProject } from "@/lib/projects/due-date";
+import { assertExecutionUnlocked } from "@/lib/projects/execution-gate";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse } from "@/lib/api/respond";
 
@@ -56,6 +57,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     const actor = await requireRole(["ADMIN", "PROJECT_LEAD"]);
     await assertProjectAccess(actor, params.id);
+    await assertExecutionUnlocked(params.id);
 
     const json = await request.json().catch(() => null);
     const input = createTaskSchema.parse(json);

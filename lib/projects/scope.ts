@@ -44,4 +44,8 @@ export const CLIENT_SAFE_PROJECT_SELECT = {
   targetDate: true,
   createdAt: true,
   lead: { select: { name: true, email: true } },
+  // So the Client-facing project page can show the same "advance not yet
+  // verified" banner as the internal view — a timestamp, not a sensitive
+  // financial figure, so it's safe in the client-safe select.
+  advancePaymentVerifiedAt: true,
 } as const;

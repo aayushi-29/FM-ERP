@@ -11,7 +11,15 @@
 // README.md's "Testing" section for how to switch DATABASE_URL and remove
 // this fake once `prisma generate` can reach the network it needs.
 
-export type FakeProject = { id: string; clientOrgId: string; targetDate: Date | null };
+export type FakeProject = {
+  id: string;
+  clientOrgId: string;
+  targetDate: Date | null;
+  // "Changed - Working Logic" branch: optional so existing seeds (which
+  // predate the execution-gate feature) don't need updating — absent means
+  // the same thing as null (advance not verified).
+  advancePaymentVerifiedAt?: Date | null;
+};
 export type FakeAssignment = { userId: string; projectId: string };
 export type FakeTask = { id: string; projectId: string; dueDate: Date | null };
 export type FakeMilestone = { id: string; projectId: string; dueDate: Date | null };

@@ -11,12 +11,14 @@ export function VersionActions({
   canEdit,
   canDecide,
   canRevise,
+  openRevisionRequestId,
 }: {
   versionId: string;
   status: Status;
   canEdit: boolean; // DRAFT owner (NPD Executive / Admin) — submit for review
   canDecide: boolean; // Project Lead / Admin — approve or reject
   canRevise: boolean; // NPD Executive / Admin, latest APPROVED/REJECTED version
+  openRevisionRequestId?: string | null; // if set, "Revise" marks this rework request ADDRESSED
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -71,7 +73,11 @@ export function VersionActions({
     setPending(true);
     setError(null);
     try {
-      const res = await fetch(`/api/formulation-versions/${versionId}/revise`, { method: "POST" });
+      const res = await fetch(`/api/formulation-versions/${versionId}/revise`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(openRevisionRequestId ? { addressesRequestId: openRevisionRequestId } : {}),
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data.error ?? "Could not create a revision.");
@@ -122,7 +128,11 @@ export function VersionActions({
 
       {canRevise && (status === "APPROVED" || status === "REJECTED") ? (
         <button disabled={pending} onClick={revise}>
-          {pending ? "Creating revision…" : "Revise (create next draft)"}
+          {pending
+            ? "Creating revision…"
+            : openRevisionRequestId
+            ? "Revise (addresses the open rework request)"
+            : "Revise (create next draft)"}
         </button>
       ) : null}
     </div>
