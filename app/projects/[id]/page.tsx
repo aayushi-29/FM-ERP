@@ -33,6 +33,9 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         </p>
         <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Milestones</h2>
         <MilestoneList milestones={project.milestones} role="CLIENT" />
+
+        <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Documents</h2>
+        <Link href={`/projects/${project.id}/documents`}>Open documents →</Link>
       </main>
     );
   }
@@ -112,6 +115,12 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         Track recipes, process notes, trials, and client approvals for this project.
       </p>
       <Link href={`/projects/${project.id}/products`}>Open products →</Link>
+
+      <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Documents</h2>
+      <p style={{ color: "#555", fontSize: ".9rem" }}>
+        Contracts, technical specs, trial records, and anything shared with the client.
+      </p>
+      <Link href={`/projects/${project.id}/documents`}>Open documents →</Link>
     </main>
   );
 }

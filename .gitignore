@@ -18,6 +18,9 @@ npm-debug.log*
 # prisma
 prisma/*.db
 
+# uploaded files (local-disk storage driver — dev/sandbox only, see lib/storage)
+/storage/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

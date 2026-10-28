@@ -275,7 +275,7 @@ around existing code:
 1. **Project scaffold** — done. Next.js/TypeScript/Prisma wiring, no secrets committed.
 2. **Database schema & migrations** — done. `prisma/schema.prisma` encodes the confirmed decisions (roles, formulation versioning, decimal money, deferred inventory).
 3. **Auth & server-side RBAC** — done for email/password. `lib/auth/` has password hashing, DB-backed sessions (revocable — Decision #9), and `requireUser`/`requireRole`/`assertProjectAccess` helpers every route and page must call explicitly (no implicit protection via folder nesting). SSO/OAuth (Google/Microsoft for staff) is a planned follow-on, not built yet — the `Session` model and cookie-based approach were chosen so adding an OAuth provider later doesn't require a redesign.
-4. **Core module APIs**, in dependency order: **Users → Clients/CRM → Projects/Tasks → NPD/Formulations/Trials** (done) → Documents → Costing/Invoices. Each module ships with its own permission and integrity tests — see "Users & CRM, as built", "Projects, Tasks & Milestones, as built", and "NPD / Formulations / Trials, as built" below for what's covered so far and what's intentionally deferred.
+4. **Core module APIs**, in dependency order: **Users → Clients/CRM → Projects/Tasks → NPD/Formulations/Trials → Documents** (done) → Costing/Invoices. Each module ships with its own permission and integrity tests — see "Users & CRM, as built", "Projects, Tasks & Milestones, as built", "NPD / Formulations / Trials, as built", and "Documents, as built" below for what's covered so far and what's intentionally deferred.
 5. **Role dashboards & UI** — built against the real APIs above, in plain language for non-technical users.
 6. **Audit trail & test suite** — audit logging wired across sensitive actions; cross-client, assignment-boundary, and cost/invoice tests from the baseline's acceptance criteria.
 
@@ -413,6 +413,62 @@ around existing code:
   baseline states for money (§7: "never use floating-point arithmetic for
   financial totals") applied to recipe quantities, since Costing will
   later multiply against them.
+
+## Documents, as built
+
+- **Upload & versioning** (`/projects/:id/documents`,
+  `app/api/projects/[id]/documents`, `app/api/documents/[id]/versions`):
+  every document is created with its first `DocumentVersion` in the same
+  transaction, and a new version only ever adds a row — nothing is ever
+  overwritten or deleted, per baseline §9 ("Preserve document versions and
+  record actor, time, and relevant changes"). File bytes are written to
+  disk *before* the database row is created inside the same `$transaction`
+  callback, so a failed write can never leave a DB row pointing at a file
+  that doesn't exist.
+- **Storage is behind an interface** (`lib/storage/index.ts`), on purpose:
+  the only implementation today is `lib/storage/local.ts`, which writes to
+  a gitignored `storage/` folder on whatever machine is running the app.
+  That's fine for development but **is not production-ready** — it isn't
+  durable across redeploys and isn't shared across multiple instances.
+  Decision #8's object-storage provider (still TBD) plugs in as a second
+  implementation of the same two-function interface
+  (`save`/`read`); nothing else in the app changes when that happens.
+- **Who can upload what — interpretation flag:** the baseline's matrix
+  gives NPD Executive "upload permitted technical documents" and Client
+  "upload permitted types" without naming the types. This build reads
+  "technical" literally (NPD Executive → `TECHNICAL_SPEC`/`TRIAL_RECORD`
+  only) and keeps Client's upload right separate from the business
+  document types they can only *read* (`CONTRACT`/`COMMERCIAL`/
+  `FORMULATION_SUMMARY`) — Client can only upload `OTHER`, a place for
+  their own reference material. Admin and Project Lead can upload any
+  type, matching their "manage" language. The whole mapping is one object
+  in `lib/documents/scope.ts` if Food Monk wants it widened.
+- **Visibility** (`INTERNAL_ONLY` / `CLIENT_VISIBLE`) can only be set or
+  changed by Admin or Project Lead (`canManageVisibility` in the same
+  file) — an NPD Executive's or Client's own upload always lands
+  `INTERNAL_ONLY` regardless of what they send, so nothing becomes
+  client-visible without a managing role reviewing it first. A Client's
+  `GET` on the list, a single document, or a download all independently
+  check `visibility === CLIENT_VISIBLE` and 404 otherwise — not just a
+  filtered list with an unguarded detail route behind it.
+- **Downloads are authorized and audited individually**
+  (`app/api/documents/[id]/versions/[versionId]/download`) — no
+  public or signed URL shortcut; every request re-checks project access
+  and (for Client) visibility, then streams the bytes with
+  `Cache-Control: private, no-store`. Matches baseline §9/§13's explicit
+  call to authorize and test file-download routes, not just uploads.
+- **File validation**: a fixed MIME-type allowlist (`lib/documents/scope.ts`)
+  and a 20MB size cap, both enforced server-side on every upload (initial
+  and new-version). **Malware/virus scanning is not implemented** — the
+  baseline asks to "consider malware scanning before making files
+  available," and this MVP doesn't have a scanning provider wired in. This
+  is a real gap before go-live with untrusted uploads (e.g. Client
+  uploads), tracked here and in the security checklist in the build-brief
+  artifact.
+- **`TrialAttachment`** (linking a Document to a Trial) exists in the
+  schema but has no API/UI yet — trials currently record free-text
+  `results`/`parameters` only. Deferred rather than built ahead of real
+  usage; a natural small follow-up once this module is in use.
 
 ## Auth, as built
 
