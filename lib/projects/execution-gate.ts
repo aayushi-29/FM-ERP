@@ -10,11 +10,17 @@ import { ValidationError } from "@/lib/api/respond";
 // so the project record can't silently run ahead of what's actually been
 // paid for.
 //
-// Deliberately narrow: this only blocks *creating new* tasks/trials. It
-// does not block reading, updating, or completing work already on the
-// books, and it does not touch any other route — leads, clients, documents,
-// formulations, invoices, etc. are all unaffected, per "do not break the
-// existing functionality."
+// Deliberately narrow: this only blocks *creating new* records that count
+// as "starting work" — Tasks, Trials, Products, Formulations, and
+// ingredient lines (wired in at each of those routes; see
+// app/api/projects/[id]/tasks, app/api/formulation-versions/[id]/trials,
+// app/api/projects/[id]/products, app/api/products/[id]/formulations, and
+// app/api/formulation-versions/[id]/ingredient-lines). It does not block
+// reading, updating, or completing work already on the books, and it does
+// not touch leads, clients, documents, milestones, or invoices — those can
+// still happen before the advance (e.g. uploading a signed contract, or
+// raising the ADVANCE_60 invoice itself, has to be possible before the
+// advance is verified).
 export async function assertExecutionUnlocked(projectId: string): Promise<void> {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
