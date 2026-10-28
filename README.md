@@ -66,13 +66,66 @@ original system-design baseline recommends for a modular-monolith MVP.
 > gives you a pooled one for `DATABASE_URL` and an unpooled one for
 > `DIRECT_URL` directly, no extra setup.
 
+## Installing PostgreSQL on macOS
+
+The easiest route is [Homebrew](https://brew.sh). If you don't have it:
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+1. **Install Postgres:**
+   ```bash
+   brew install postgresql@16
+   brew services start postgresql@16
+   ```
+   `brew services start` sets it to run in the background automatically,
+   including after a restart — no separate "start the server" step needed
+   going forward.
+2. **Confirm it's running:**
+   ```bash
+   brew services list
+   ```
+   You should see `postgresql@16` with status `started`.
+3. **Create the app's database.** Homebrew's Postgres creates a default
+   superuser matching your Mac username, with no password, so this is
+   usually just:
+   ```bash
+   createdb fm_erp
+   ```
+   If that errors with `role "postgres" does not exist` or similar, use
+   your own macOS username in the connection string in step 4 instead of
+   `postgres` — run `whoami` to see it.
+4. **Your connection string:**
+   ```
+   postgresql://localhost:5432/fm_erp?schema=public
+   ```
+   (No username/password needed for Homebrew's default local setup.) If
+   you did set a password, or are using a different user, it's:
+   ```
+   postgresql://<user>:<password>@localhost:5432/fm_erp?schema=public
+   ```
+   Use this for both `DATABASE_URL` and `DIRECT_URL` in step 4 of Getting
+   Started below.
+
+**Common macOS issues**
+- `command not found: brew` — install Homebrew first (command above), then
+  restart your terminal.
+- `command not found: createdb` / `psql` — Homebrew's Postgres binaries
+  aren't on your PATH. Run `brew info postgresql@16` and follow the "Add to
+  PATH" lines it prints (usually adding a line to `~/.zshrc`), then open a
+  new terminal tab.
+- `Error: P1001: Can't reach database server at localhost:5432` — the
+  service isn't running; `brew services start postgresql@16`.
+- `database "fm_erp" already exists` — fine, skip to the next step.
+
 ## Getting started (local machine)
 
 **Prerequisites**
 - [Node.js](https://nodejs.org) 20 or later (`node -v` to check)
-- [PostgreSQL](https://www.postgresql.org/download/) 14+ running locally
-  — see **Installing PostgreSQL on Windows** below
-- Git ([git-scm.com](https://git-scm.com/download/win))
+- PostgreSQL 14+ running locally — see **Installing PostgreSQL on
+  Windows** or **Installing PostgreSQL on macOS** above, whichever
+  matches your machine
+- Git
 
 **1. Clone the repo**
 
@@ -89,29 +142,35 @@ npm install
 
 **3. Create your local database**
 
-Already done if you followed **Installing PostgreSQL on Windows** above
-(step 4). If you're on a cloud provider instead, create a project there and
-grab its connection string.
+Already done if you followed the macOS or Windows Postgres section above.
+If you're on a cloud provider instead, create a project there and grab its
+connection string.
 
 **4. Set up environment variables**
 
-In **Git Bash** (installed with Git for Windows):
+On **macOS / Linux / Git Bash**:
 ```bash
 cp .env.example .env
 ```
-In **PowerShell** instead:
+On **Windows PowerShell** instead:
 ```powershell
 copy .env.example .env
 ```
 
-Open `.env` (in Notepad, VS Code, or any text editor) and fill in:
+Open `.env` (in a text editor, or `nano .env` / `open -e .env` on macOS)
+and fill in:
 - `DATABASE_URL` and `DIRECT_URL` — both set to the connection string from
-  step 5 of **Installing PostgreSQL on Windows** above (e.g.
-  `postgresql://postgres:yourpassword@localhost:5432/fm_erp?schema=public`),
-  unless you're on Neon/Supabase, in which case use their pooled connection
-  string for `DATABASE_URL` and unpooled one for `DIRECT_URL`.
-- `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` — your first login (password:
-  10+ characters). Remove both after your first successful seed, below.
+  the Postgres install section above for your OS (e.g.
+  `postgresql://localhost:5432/fm_erp?schema=public` on macOS with
+  Homebrew's default setup, or
+  `postgresql://postgres:yourpassword@localhost:5432/fm_erp?schema=public`
+  on Windows), unless you're on Neon/Supabase, in which case use their
+  pooled connection string for `DATABASE_URL` and unpooled one for
+  `DIRECT_URL`.
+- `SEED_ADMIN_EMAIL` — already set to `admin@foodmonk.com` in
+  `.env.example`; change it if you want a different address.
+- `SEED_ADMIN_PASSWORD` — pick one (10+ characters). Remove both
+  `SEED_ADMIN_*` lines after your first successful seed, below.
 
 **5. Generate the Prisma client and create the database tables**
 
@@ -136,8 +195,22 @@ npm run dev
 ```
 
 Open [http://localhost:3000/login](http://localhost:3000/login) and sign in
-with the `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` from step 4. Then remove
-those two lines from `.env` — they're only needed for that one seed run.
+with the `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` from step 4 (default
+`admin@foodmonk.com`). Then remove those two lines from `.env` — they're
+only needed for that one seed run.
+
+**8. Browse your data with Prisma Studio (optional)**
+
+```bash
+npm run prisma:studio
+```
+
+Opens a web UI at [http://localhost:5555](http://localhost:5555) where you
+can view, filter, and edit every table — the closest thing to a "Postgres
+UI" without installing a separate app like pgAdmin or TablePlus. It reads
+`DATABASE_URL` from your `.env`, so no extra setup. Leave `npm run dev`
+running in one terminal tab and run this in another; both can be open at
+once.
 
 **Optional, before you start changing code:**
 
@@ -151,7 +224,7 @@ exported from `@prisma/client`, step 5 (`prisma:generate`) didn't complete —
 rerun it and check for errors in its output (a bad `DATABASE_URL` is the
 usual cause).
 
-**Common Windows issues**
+**Common Windows issues** (see **Common macOS issues** further up for Mac)
 - `'psql' is not recognized as an internal or external command` — the
   installer's bin folder (something like
   `C:\Program Files\PostgreSQL\17\bin`) wasn't added to PATH. Use **SQL
