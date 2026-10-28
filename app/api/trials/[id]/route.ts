@@ -14,7 +14,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
 
     const trial = await prisma.trial.findUnique({
       where: { id: params.id },
-      include: { attachments: { include: { document: { select: { id: true, title: true } } } } },
+      include: { attachments: { include: { document: { select: { id: true, type: true } } } } },
     });
     if (!trial) return NextResponse.json({ error: "Not found" }, { status: 404 });
 

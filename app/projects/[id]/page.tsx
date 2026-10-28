@@ -32,7 +32,15 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           {project.lead ? ` · led by ${project.lead.name}` : ""}
         </p>
         <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Milestones</h2>
-        <MilestoneList milestones={project.milestones} role="CLIENT" />
+        <MilestoneList
+          milestones={project.milestones.map((m) => ({
+            id: m.id,
+            title: m.title,
+            status: m.status,
+            dueDate: m.dueDate ? m.dueDate.toISOString() : null,
+          }))}
+          role="CLIENT"
+        />
 
         <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Documents</h2>
         <Link href={`/projects/${project.id}/documents`}>Open documents →</Link>
@@ -91,7 +99,15 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
       {canManage ? <AssignForm projectId={project.id} candidates={candidates} /> : null}
 
       <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Tasks</h2>
-      <TaskList tasks={project.tasks} />
+      <TaskList
+        tasks={project.tasks.map((t) => ({
+          id: t.id,
+          title: t.title,
+          status: t.status,
+          assignee: t.assignee,
+          dueDate: t.dueDate ? t.dueDate.toISOString() : null,
+        }))}
+      />
       {canManage ? (
         <div style={{ marginTop: 10 }}>
           <NewTaskForm
@@ -103,7 +119,15 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
       ) : null}
 
       <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Milestones</h2>
-      <MilestoneList milestones={project.milestones} role={user.role} />
+      <MilestoneList
+        milestones={project.milestones.map((m) => ({
+          id: m.id,
+          title: m.title,
+          status: m.status,
+          dueDate: m.dueDate ? m.dueDate.toISOString() : null,
+        }))}
+        role={user.role}
+      />
       {canManage ? (
         <div style={{ marginTop: 10 }}>
           <NewMilestoneForm

@@ -133,7 +133,15 @@ export default async function FormulationVersionPage({ params }: { params: { id:
       <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Trials</h2>
       <TrialsSection
         versionId={version.id}
-        trials={version.trials}
+        trials={version.trials.map((t) => ({
+          id: t.id,
+          status: t.status,
+          parameters: t.parameters,
+          results: t.results,
+          conductedById: t.conductedById,
+          conductedAt: t.conductedAt.toISOString(),
+          attachments: t.attachments,
+        }))}
         canCreate={trialsCreatable}
         currentUserId={user.id}
         projectDocuments={projectDocuments.map((d) => ({ id: d.id, type: d.type, createdAt: d.createdAt.toISOString() }))}
