@@ -46,32 +46,38 @@
   --radius-sm: 10px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --fm-bg: #1b120b;
-    --fm-text: #f3e7d8;
-    --fm-text-muted: #c6b29c;
-    --glass-fill: rgba(58, 36, 21, 0.5);
-    --glass-fill-strong: rgba(58, 36, 21, 0.72);
-    --glass-border: rgba(255, 229, 196, 0.16);
-    --glass-highlight: rgba(255, 229, 196, 0.22);
-    --glass-shadow: 0 10px 40px -8px rgba(0, 0, 0, 0.5), 0 2px 8px -2px rgba(0, 0, 0, 0.35);
-    --fm-danger-bg: rgba(180, 49, 42, 0.18);
-    --fm-success-bg: rgba(63, 125, 79, 0.18);
-  }
-}
-
+/* Food Monk ERP keeps one brand look regardless of the device's OS theme
+   (an internal data tool benefits more from consistent, demo-safe contrast
+   than from auto dark mode) — so unlike a typical site, this does NOT
+   follow prefers-color-scheme. A manual dark variant is kept here, opt-in
+   only via data-theme="dark" on <html>, for whenever that's wired to a
+   toggle; nothing sets that attribute today, so the app always renders
+   the light/cream glass theme shown in design review. */
 :root[data-theme="dark"] {
   --fm-bg: #1b120b;
   --fm-text: #f3e7d8;
-  --fm-text-muted: #c6b29c;
-  --glass-fill: rgba(58, 36, 21, 0.5);
-  --glass-fill-strong: rgba(58, 36, 21, 0.72);
-  --glass-border: rgba(255, 229, 196, 0.16);
-  --glass-highlight: rgba(255, 229, 196, 0.22);
+  --fm-text-muted: #d8c7b2;
+  --fm-slate: #c2ac94;
+  --glass-fill: rgba(58, 36, 21, 0.55);
+  --glass-fill-strong: rgba(58, 36, 21, 0.78);
+  --glass-border: rgba(255, 229, 196, 0.22);
+  --glass-highlight: rgba(255, 229, 196, 0.28);
   --glass-shadow: 0 10px 40px -8px rgba(0, 0, 0, 0.5), 0 2px 8px -2px rgba(0, 0, 0, 0.35);
-  --fm-danger-bg: rgba(180, 49, 42, 0.18);
-  --fm-success-bg: rgba(63, 125, 79, 0.18);
+  --fm-danger-bg: rgba(180, 49, 42, 0.22);
+  --fm-success-bg: rgba(63, 125, 79, 0.22);
+}
+
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--fm-text);
+}
+
+:root[data-theme="dark"] input:focus,
+:root[data-theme="dark"] select:focus,
+:root[data-theme="dark"] textarea:focus {
+  background: rgba(255, 255, 255, 0.13);
 }
 
 * {
@@ -132,11 +138,9 @@ body {
   animation-direction: alternate-reverse;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .fm-backdrop::before,
-  :root:not([data-theme="light"]) .fm-backdrop::after {
-    opacity: 0.3;
-  }
+:root[data-theme="dark"] .fm-backdrop::before,
+:root[data-theme="dark"] .fm-backdrop::after {
+  opacity: 0.3;
 }
 
 @keyframes fm-drift {
@@ -315,19 +319,6 @@ input::placeholder, textarea::placeholder {
 input:focus, select:focus, textarea:focus {
   background: rgba(255, 255, 255, 0.85);
   border-color: var(--fm-terracotta);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) input,
-  :root:not([data-theme="light"]) select,
-  :root:not([data-theme="light"]) textarea {
-    background: rgba(255, 255, 255, 0.06);
-  }
-  :root:not([data-theme="light"]) input:focus,
-  :root:not([data-theme="light"]) select:focus,
-  :root:not([data-theme="light"]) textarea:focus {
-    background: rgba(255, 255, 255, 0.1);
-  }
 }
 
 /* ---------- Tables ---------- */
