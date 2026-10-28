@@ -299,10 +299,21 @@ around existing code:
   decision like the numbered 12 — flag it if Food Monk wants it tighter or
   looser; every query runs through `lib/crm/scope.ts`, so it's a one-place
   change.
-- **Leads** (the `Lead` model) exist in the schema but have no API/UI yet —
-  lead capture and lead-to-client conversion naturally come after Projects
-  exists (conversion creates a Project), so they're deferred to that step
-  rather than built ahead of what they depend on.
+- **Leads** (`/leads`, `app/api/leads`) — Admin + Project Lead can both log
+  and work the whole pipeline (`OPEN`/`QUALIFIED`/`LOST`); baseline §4's
+  "Clients/CRM" row doesn't define a per-lead boundary (a Lead predates any
+  `ClientOrganization`/`Project` for `ProjectAssignment` to scope against),
+  so this is a flagged interpretation, not a confirmed decision — see the
+  comment in `app/api/leads/route.ts` if Food Monk wants the pipeline split
+  some other way. **Converting** a lead (`POST /api/leads/[id]/convert`,
+  `/leads/[id]`'s convert form) is Admin-only, matching Project creation's
+  own restriction: in one transaction it creates the `ClientOrganization`
+  (named from the lead's company), a primary `ClientContact` from the
+  lead's contact details, the `Project` itself, the lead's
+  `ProjectAssignment` row, and marks the `Lead` `CONVERTED` with
+  `convertedToProjectId` set — never partially, and never two ways to
+  reach `CONVERTED` (the plain `PATCH` route explicitly rejects setting
+  that status directly).
 - Every create/update in both modules writes an `AuditLog` row in the same
   database transaction as the change itself (baseline §7: operations that
   must succeed or fail together use one transaction) — not as a
@@ -332,9 +343,9 @@ around existing code:
   creates/status changes go to the lighter `ProjectActivity` feed instead
   (`lib/projects/activity.ts`) so the audit log doesn't fill with
   task-dragging noise.
-- **Leads → client conversion** (baseline §6.1) is still not built — it
-  creates a Project, so it depended on this module existing first. It's
-  the natural next small piece before NPD/Formulations.
+- **Leads → client conversion** (baseline §6.1) is built — see "Users &amp;
+  CRM, as built" above; it depended on this module existing first since
+  conversion creates a `Project`.
 - **Due-date consistency**: a task or milestone's due date can't be set
   after its project's `targetDate` — enforced server-side in
   `lib/projects/due-date.ts`, called from both create and edit on tasks
@@ -465,10 +476,18 @@ around existing code:
   is a real gap before go-live with untrusted uploads (e.g. Client
   uploads), tracked here and in the security checklist in the build-brief
   artifact.
-- **`TrialAttachment`** (linking a Document to a Trial) exists in the
-  schema but has no API/UI yet — trials currently record free-text
-  `results`/`parameters` only. Deferred rather than built ahead of real
-  usage; a natural small follow-up once this module is in use.
+- **`TrialAttachment`** (linking a Document to a Trial) is built:
+  `POST /api/trials/[id]/attachments` (body `{ documentId }`) and
+  `DELETE /api/trial-attachments/[id]`, both following the same write rule
+  as a trial's own `PATCH` — Admin always, an NPD Executive only for a
+  trial they conducted. This links an *already-uploaded* project
+  `Document` to a trial; it never uploads a new file itself (that's still
+  the Documents module's job), and a document from a different project is
+  rejected. The trial detail view (`trials-section.tsx`) lists each
+  trial's attached document types with a Remove button, and a dropdown to
+  attach any of the project's existing documents not already linked.
+  Removing an attachment only deletes the join row, never the underlying
+  `Document`.
 
 ## Costing & Invoicing, as built
 
@@ -535,16 +554,34 @@ around existing code:
   precision loss either way. Every dollar/rupee amount posted to these routes is
   still validated as a plain decimal string first, same as NPD's
   ingredient quantities.
-- **Migrations**: this schema change (CostSheet's new fields, the
-  `Invoice`/`Payment`/`CreditNote`/`ProjectExpense` author relations,
-  `CostPriceBasis`/`InvoiceStatus` enums) hasn't been applied to any
-  database yet — no `prisma/migrations` folder has ever been committed to
-  this repo; every schema change so far has relied on whoever's running
-  `prisma migrate dev` locally. That's a gap worth closing: **the next
-  person to run `prisma migrate dev` should commit the generated
-  `prisma/migrations/` folder** so Windows/production can run
-  `prisma migrate deploy` against the same history instead of each
-  environment inventing its own.
+- **Migrations still aren't committed — confirmed blocked from this sandbox,
+  needs one run on your own machine.** No `prisma/migrations/` folder has
+  ever been committed to this repo; every schema change so far (NPD,
+  Documents, Costing & Invoicing, now Leads) has relied on whoever's
+  running `prisma migrate dev` locally, with no shared history. Checked
+  again on 28 Oct 2026: `npx prisma -v` in this sandbox fails outright —
+  `curl -sS "$HTTPS_PROXY/__agentproxy/status"` shows the sandbox's own
+  network policy returning a flat `403` on every `CONNECT` to
+  `binaries.prisma.sh`, not a timeout or a flaky retry — so there is no
+  way to generate or even validate a migration from here; the Prisma CLI
+  needs its schema-engine binary from that host for every one of
+  `migrate dev` / `migrate diff` / `db push`, with no pure-JS fallback.
+  Hand-writing a `prisma/migrations/` SQL file to work around that was
+  considered and rejected: Prisma's migration history is checksum-verified
+  (`migration_lock.toml` + each migration's checksum), so a hand-authored
+  file that doesn't byte-for-byte match what the schema engine would have
+  produced risks `migrate dev` on a real machine silently treating a wrong
+  migration as "already applied," which is worse than no history at all.
+  **One-time fix, run locally where Prisma can reach the real engine:**
+  ```
+  npm run prisma:migrate
+  ```
+  (prompts for a name the first time — `init` is fine) against a real
+  Postgres instance per `DATABASE_URL`/`DIRECT_URL` in your `.env`. Commit
+  the `prisma/migrations/` folder it generates. From then on, every
+  environment (including Windows/production) runs
+  `npx prisma migrate deploy` against that same committed history instead
+  of each one inventing its own via `migrate dev`.
 
 ## Auth, as built
 

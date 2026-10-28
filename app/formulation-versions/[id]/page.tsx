@@ -41,7 +41,15 @@ export default async function FormulationVersionPage({ params }: { params: { id:
       author: { select: { id: true, name: true } },
       ingredientLines: { orderBy: { materialName: "asc" } },
       trials: {
-        select: { id: true, status: true, parameters: true, results: true, conductedById: true, conductedAt: true },
+        select: {
+          id: true,
+          status: true,
+          parameters: true,
+          results: true,
+          conductedById: true,
+          conductedAt: true,
+          attachments: { select: { id: true, document: { select: { id: true, type: true } } } },
+        },
         orderBy: { conductedAt: "desc" },
       },
       approvals: { include: { approver: { select: { id: true, name: true } } }, orderBy: { decidedAt: "desc" } },
@@ -49,6 +57,15 @@ export default async function FormulationVersionPage({ params }: { params: { id:
     },
   });
   if (!version) notFound();
+
+  // Project documents available to attach to a trial — only the id/type
+  // (enough to label a dropdown option and link to the full document
+  // page), not the full Documents-module query.
+  const projectDocuments = await prisma.document.findMany({
+    where: { projectId },
+    select: { id: true, type: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+  });
 
   const canEditDraft = user.role === "ADMIN" || user.role === "NPD_EXECUTIVE";
   const canDecide = user.role === "ADMIN" || user.role === "PROJECT_LEAD";
@@ -119,6 +136,7 @@ export default async function FormulationVersionPage({ params }: { params: { id:
         trials={version.trials}
         canCreate={trialsCreatable}
         currentUserId={user.id}
+        projectDocuments={projectDocuments.map((d) => ({ id: d.id, type: d.type, createdAt: d.createdAt.toISOString() }))}
       />
     </main>
   );

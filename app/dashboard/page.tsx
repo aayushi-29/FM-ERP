@@ -36,6 +36,7 @@ export default async function DashboardPage() {
         {user.role === "ADMIN" ? <Link href="/admin/users">Users</Link> : null}
         {user.role === "ADMIN" ? <Link href="/admin/audit-log">Audit log</Link> : null}
         {user.role === "ADMIN" || user.role === "PROJECT_LEAD" ? <Link href="/clients">Clients</Link> : null}
+        {user.role === "ADMIN" || user.role === "PROJECT_LEAD" ? <Link href="/leads">Leads</Link> : null}
         <Link href="/projects">Projects</Link>
       </nav>
 
