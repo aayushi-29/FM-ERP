@@ -6,22 +6,34 @@ import { useRouter } from "next/navigation";
 type Line = {
   id: string;
   materialName: string;
+  rawMaterialId: string | null;
   quantity: string;
   unit: string;
   percentage: string | null;
   technicalNotes: string | null;
 };
 
+type RawMaterialOption = { id: string; name: string; defaultUnit: string; supplierName: string | null };
+
 export function IngredientLines({
   versionId,
   lines,
   editable,
+  rawMaterials,
 }: {
   versionId: string;
   lines: Line[];
   editable: boolean; // DRAFT status + NPD Executive/Admin
+  // "Research -> identify ingredients -> ingredients selection" — this is
+  // that selection step. Picking a catalog entry (lib/inventory/scope.ts's
+  // /raw-materials) auto-fills the name/unit and records rawMaterialId, so
+  // a formulation's ingredients are traceable back to the supplier/COA
+  // record instead of being disconnected free text. A material not yet in
+  // the catalog can still be typed by hand ("Not in catalog, type below").
+  rawMaterials: RawMaterialOption[];
 }) {
   const router = useRouter();
+  const [selectedRawMaterialId, setSelectedRawMaterialId] = useState("");
   const [materialName, setMaterialName] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("");
@@ -29,6 +41,18 @@ export function IngredientLines({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  function onPickRawMaterial(id: string) {
+    setSelectedRawMaterialId(id);
+    const match = rawMaterials.find((m) => m.id === id);
+    if (match) {
+      setMaterialName(match.name);
+      setUnit(match.defaultUnit);
+    } else {
+      setMaterialName("");
+      setUnit("");
+    }
+  }
 
   async function handleAdd(e: FormEvent) {
     e.preventDefault();
@@ -40,6 +64,7 @@ export function IngredientLines({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           materialName,
+          rawMaterialId: selectedRawMaterialId || undefined,
           quantity,
           unit,
           percentage: percentage || undefined,
@@ -50,6 +75,7 @@ export function IngredientLines({
         setError(data.error ?? "Could not add that ingredient line.");
         return;
       }
+      setSelectedRawMaterialId("");
       setMaterialName("");
       setQuantity("");
       setUnit("");
@@ -91,6 +117,7 @@ export function IngredientLines({
           <thead>
             <tr style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
               <th style={{ padding: "4px 6px" }}>Material</th>
+              <th style={{ padding: "4px 6px" }}>Source</th>
               <th style={{ padding: "4px 6px" }}>Quantity</th>
               <th style={{ padding: "4px 6px" }}>Unit</th>
               <th style={{ padding: "4px 6px" }}>%</th>
@@ -101,6 +128,9 @@ export function IngredientLines({
             {lines.map((line) => (
               <tr key={line.id} style={{ borderBottom: "1px solid #eee" }}>
                 <td style={{ padding: "4px 6px" }}>{line.materialName}</td>
+                <td style={{ padding: "4px 6px", fontSize: ".8rem", color: line.rawMaterialId ? "#2a7a2a" : "#999" }}>
+                  {line.rawMaterialId ? "Catalog" : "Manual"}
+                </td>
                 <td style={{ padding: "4px 6px" }}>{line.quantity}</td>
                 <td style={{ padding: "4px 6px" }}>{line.unit}</td>
                 <td style={{ padding: "4px 6px" }}>{line.percentage ?? "—"}</td>
@@ -119,9 +149,33 @@ export function IngredientLines({
 
       {editable ? (
         <form onSubmit={handleAdd} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end", marginTop: 12 }}>
+          <label style={{ minWidth: 220 }}>
+            Select from materials catalog
+            <select
+              value={selectedRawMaterialId}
+              onChange={(e) => onPickRawMaterial(e.target.value)}
+              style={{ display: "block", width: "100%", padding: 6 }}
+            >
+              <option value="">Not in catalog — type below</option>
+              {rawMaterials.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                  {m.supplierName ? ` (${m.supplierName})` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
           <label style={{ minWidth: 160 }}>
-            Material
-            <input value={materialName} onChange={(e) => setMaterialName(e.target.value)} required style={{ display: "block", width: "100%", padding: 6 }} />
+            Material name
+            <input
+              value={materialName}
+              onChange={(e) => {
+                setMaterialName(e.target.value);
+                setSelectedRawMaterialId(""); // hand-editing detaches it from the catalog pick
+              }}
+              required
+              style={{ display: "block", width: "100%", padding: 6 }}
+            />
           </label>
           <label style={{ width: 100 }}>
             Quantity

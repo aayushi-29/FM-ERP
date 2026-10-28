@@ -4,6 +4,7 @@ import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth
 import { prisma } from "@/lib/prisma";
 import { getProjectIdForFormulationVersion, CLIENT_SAFE_VERSION_SELECT } from "@/lib/npd/scope";
 import { isExecutionUnlocked } from "@/lib/projects/execution-gate";
+import { canReadInventory } from "@/lib/inventory/scope";
 import { IngredientLines } from "./ingredient-lines";
 import { TrialsSection } from "./trials-section";
 import { VersionActions } from "./version-actions";
@@ -109,6 +110,17 @@ export default async function FormulationVersionPage({ params }: { params: { id:
     orderBy: { createdAt: "desc" },
   });
 
+  // "Research -> identify ingredients -> ingredients selection" — the
+  // catalog an ingredient line is picked from (lib/inventory/scope.ts's
+  // canReadInventory governs the /raw-materials page too; NPD Executive,
+  // who actually edits ingredient lines, always passes this check).
+  const rawMaterials = canReadInventory(user.role)
+    ? await prisma.rawMaterial.findMany({
+        select: { id: true, name: true, defaultUnit: true, supplier: { select: { name: true } } },
+        orderBy: { name: "asc" },
+      })
+    : [];
+
   const canEditDraft = user.role === "ADMIN" || user.role === "NPD_EXECUTIVE";
   const canDecide = user.role === "ADMIN" || user.role === "PROJECT_LEAD";
   const canRevise = canEditDraft && version.nextVersions.length === 0;
@@ -184,12 +196,19 @@ export default async function FormulationVersionPage({ params }: { params: { id:
         lines={version.ingredientLines.map((line) => ({
           id: line.id,
           materialName: line.materialName,
+          rawMaterialId: line.rawMaterialId,
           quantity: line.quantity.toString(),
           unit: line.unit,
           percentage: line.percentage ? line.percentage.toString() : null,
           technicalNotes: line.technicalNotes,
         }))}
         editable={linesEditable}
+        rawMaterials={rawMaterials.map((m) => ({
+          id: m.id,
+          name: m.name,
+          defaultUnit: m.defaultUnit,
+          supplierName: m.supplier?.name ?? null,
+        }))}
       />
 
       <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Trials</h2>
