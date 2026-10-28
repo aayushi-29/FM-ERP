@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
+import { isExecutionUnlocked } from "@/lib/projects/execution-gate";
 import { NewFormulationForm } from "./new-formulation-form";
 
 export default async function ProductDetailPage({ params }: { params: { id: string } }) {
@@ -34,7 +35,8 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
 
   await assertProjectAccessOrRedirect(user, product.projectId);
 
-  const canCreate = user.role === "ADMIN" || user.role === "NPD_EXECUTIVE";
+  const executionUnlocked = await isExecutionUnlocked(product.projectId);
+  const canCreate = (user.role === "ADMIN" || user.role === "NPD_EXECUTIVE") && executionUnlocked;
 
   return (
     <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 700 }}>
@@ -42,6 +44,12 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
         <Link href={`/projects/${product.projectId}/products`}>← {product.project.name} products</Link>
       </p>
       <h1>{product.name}</h1>
+      {!executionUnlocked && (user.role === "ADMIN" || user.role === "NPD_EXECUTIVE") ? (
+        <p style={{ color: "#b00020", fontSize: ".85rem" }}>
+          Locked: the 60% advance payment hasn&apos;t been verified yet, so no new formulations
+          can be drafted on this project.
+        </p>
+      ) : null}
 
       <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Formulations</h2>
       {product.formulations.length === 0 ? (

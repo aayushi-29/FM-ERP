@@ -8,6 +8,8 @@ import { logProjectActivity } from "@/lib/projects/activity";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse } from "@/lib/api/respond";
 import { assertNoLaterDueDatesThan } from "@/lib/projects/due-date";
+import { assertFinalPaymentVerified } from "@/lib/payments/stage-gates";
+import { notify } from "@/lib/notifications";
 
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   try {
@@ -75,6 +77,16 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       await assertNoLaterDueDatesThan(new Date(input.targetDate), params.id);
     }
 
+    // "15% before handling the final product" — marking a project
+    // COMPLETED is the handover; it's blocked until that final payment is
+    // verified. Only checked on the transition into COMPLETED, not every
+    // PATCH, so an already-completed project (or one moving to ON_HOLD/
+    // CANCELLED) isn't re-checked.
+    const handingOver = input.status === "COMPLETED" && existing.status !== "COMPLETED";
+    if (handingOver) {
+      await assertFinalPaymentVerified(params.id);
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
       const result = await tx.project.update({
         where: { id: params.id },
@@ -100,6 +112,18 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       if (input.status && input.status !== existing.status) {
         await logProjectActivity(
           { projectId: params.id, actorId: actor.id, summary: `Status changed to ${input.status}` },
+          tx
+        );
+      }
+      if (handingOver) {
+        await notify(
+          {
+            projectId: params.id,
+            audience: "both",
+            type: "project.handed_over",
+            message: "The final product has been handed over — this project is now complete.",
+            link: `/projects/${params.id}`,
+          },
           tx
         );
       }

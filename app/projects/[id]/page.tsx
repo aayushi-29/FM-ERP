@@ -8,6 +8,7 @@ import { NewTaskForm } from "./new-task-form";
 import { MilestoneList } from "./milestone-list";
 import { NewMilestoneForm } from "./new-milestone-form";
 import { AssignForm } from "./assign-form";
+import { HandoverControl } from "./handover-control";
 
 export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();
@@ -176,6 +177,21 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           </p>
           <Link href={`/projects/${project.id}/costing`}>Open costing &amp; invoicing →</Link>
         </>
+      ) : null}
+
+      {user.role === "ADMIN" && project.status !== "COMPLETED" ? (
+        <>
+          <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Final handover</h2>
+          <p style={{ color: "#555", fontSize: ".9rem" }}>
+            Marks the project complete. Blocked until the 15% final payment is verified.
+          </p>
+          <HandoverControl projectId={project.id} />
+        </>
+      ) : null}
+      {project.status === "COMPLETED" ? (
+        <p style={{ color: "#2a7a2a", fontSize: ".9rem", marginTop: 16 }}>
+          ✓ Final product handed over — this project is complete.
+        </p>
       ) : null}
     </main>
   );

@@ -9,6 +9,7 @@ import { logAudit } from "@/lib/audit";
 import { logProjectActivity } from "@/lib/projects/activity";
 import { notify } from "@/lib/notifications";
 import { PAYMENT_STAGE_LABEL } from "@/lib/payments/stage";
+import { assertFirstSampleExists } from "@/lib/payments/stage-gates";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse, ValidationError } from "@/lib/api/respond";
 
@@ -81,6 +82,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
         throw new ValidationError(
           `This project already has a ${PAYMENT_STAGE_LABEL[input.paymentStage]} invoice`
         );
+      }
+      if (input.paymentStage === "SECOND_25") {
+        await assertFirstSampleExists(params.id);
       }
     }
 

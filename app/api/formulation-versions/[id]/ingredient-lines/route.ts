@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser, assertProjectAccess, ForbiddenError } from "@/lib/auth/rbac";
 import { getProjectIdForFormulationVersion, assertFound } from "@/lib/npd/scope";
+import { assertExecutionUnlocked } from "@/lib/projects/execution-gate";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse } from "@/lib/api/respond";
 
@@ -38,6 +39,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     const projectId = assertFound(await getProjectIdForFormulationVersion(params.id), "Not found");
     await assertProjectAccess(actor, projectId);
+    await assertExecutionUnlocked(projectId);
 
     if (version.status !== "DRAFT") {
       throw new ForbiddenError("Ingredient lines can only be edited on a DRAFT version");

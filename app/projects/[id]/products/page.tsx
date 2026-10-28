@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth/rbac";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { isExecutionUnlocked } from "@/lib/projects/execution-gate";
 import { NewProductForm } from "./new-product-form";
 
 // Client is excluded from this page entirely (baseline §4: Products/
@@ -26,7 +27,8 @@ export default async function ProductsPage({ params }: { params: { id: string } 
     orderBy: { createdAt: "desc" },
   });
 
-  const canCreate = user.role === "ADMIN" || user.role === "NPD_EXECUTIVE";
+  const executionUnlocked = await isExecutionUnlocked(params.id);
+  const canCreate = (user.role === "ADMIN" || user.role === "NPD_EXECUTIVE") && executionUnlocked;
 
   return (
     <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 700 }}>
@@ -34,6 +36,12 @@ export default async function ProductsPage({ params }: { params: { id: string } 
         <Link href={`/projects/${project.id}`}>← {project.name}</Link>
       </p>
       <h1>Products</h1>
+      {!executionUnlocked && (user.role === "ADMIN" || user.role === "NPD_EXECUTIVE") ? (
+        <p style={{ color: "#b00020", fontSize: ".85rem" }}>
+          Locked: the 60% advance payment hasn&apos;t been verified yet, so nothing can start on
+          this project — no new products, formulations, or ingredient lines.
+        </p>
+      ) : null}
 
       {products.length === 0 ? (
         <p style={{ color: "#777" }}>No products yet.</p>

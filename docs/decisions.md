@@ -45,11 +45,20 @@ the split changed stays visible. The new direction:
   place the percentages/labels live). An invoice can still be created without a stage
   for anything ad-hoc — the field is nullable — so this stays backward-compatible with
   invoices created before the change.
-- **Execution gate**: a project's tasks and trials can't be created until its 60%
-  advance invoice's `Payment` is verified by an Admin (`Project.advancePaymentVerifiedAt`,
+- **Execution gate**: confirmed with the user (29 Oct 2026) to mean *nothing* starts
+  before the advance — not just tasks/trials, but creating a Product, Formulation, or
+  ingredient line too (`Project.advancePaymentVerifiedAt`,
   `lib/projects/execution-gate.ts`). There's still no payment gateway — verification is
   always a human (Admin) confirming an offline/email acknowledgement, exactly as before;
-  this just gates execution on that confirmation having happened.
+  this just gates work on that confirmation having happened.
+- **25% stage gate**: confirmed with the user that "after 1st sample" means a `SECOND_25`
+  invoice can't be raised until at least one `Trial` has been logged on the project
+  (`lib/payments/stage-gates.ts`'s `assertFirstSampleExists`).
+- **15% stage gate / handover**: confirmed with the user that "before handling the final
+  product" means marking the project `COMPLETED` (the handover action, a new Admin-only
+  control on the project page) is blocked until the `FINAL_15` invoice's `Payment` is
+  verified (`lib/payments/stage-gates.ts`'s `assertFinalPaymentVerified`). Both sides are
+  notified on handover, same as every other payment-stage event.
 - **In-app notifications**: a `Notification` model and `lib/notifications.ts`'s
   `notify()` helper fire on invoice creation (when staged) and payment verification, to
   "company" (Admins + the project's assigned Project Lead/NPD Executive), "client"

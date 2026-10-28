@@ -124,8 +124,8 @@ export default async function FormulationVersionPage({ params }: { params: { id:
   const canEditDraft = user.role === "ADMIN" || user.role === "NPD_EXECUTIVE";
   const canDecide = user.role === "ADMIN" || user.role === "PROJECT_LEAD";
   const canRevise = canEditDraft && version.nextVersions.length === 0;
-  const linesEditable = canEditDraft && version.status === "DRAFT";
   const executionUnlocked = await isExecutionUnlocked(projectId);
+  const linesEditable = canEditDraft && version.status === "DRAFT" && executionUnlocked;
   const trialsCreatable = canEditDraft && executionUnlocked; // scope narrows per-trial to the conductor
 
   return (
@@ -188,6 +188,12 @@ export default async function FormulationVersionPage({ params }: { params: { id:
       ) : null}
 
       <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Ingredient lines</h2>
+      {canEditDraft && version.status === "DRAFT" && !executionUnlocked ? (
+        <p style={{ color: "#b00020", fontSize: ".85rem", marginBottom: 8 }}>
+          Locked: the 60% advance payment hasn&apos;t been verified yet, so ingredient lines
+          can&apos;t be edited on this project.
+        </p>
+      ) : null}
       <IngredientLines
         versionId={version.id}
         // Prisma's Decimal is a class instance, not a plain serializable
