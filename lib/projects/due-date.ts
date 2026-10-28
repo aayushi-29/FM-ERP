@@ -26,3 +26,21 @@ export async function assertDueDateWithinProject(dueDate: Date | null | undefine
     );
   }
 }
+
+// The reverse direction: pulling a project's own target date earlier can't
+// be allowed to silently strand a task or milestone that's already due
+// after the new date — extracted here (rather than left inline in the
+// PATCH /api/projects/[id] route) so both directions of the same
+// consistency rule are covered by the same test file.
+export async function assertNoLaterDueDatesThan(newTarget: Date, projectId: string) {
+  const [laterTask, laterMilestone] = await Promise.all([
+    prisma.task.findFirst({ where: { projectId, dueDate: { gt: newTarget } }, select: { title: true } }),
+    prisma.milestone.findFirst({ where: { projectId, dueDate: { gt: newTarget } }, select: { title: true } }),
+  ]);
+  const conflict = laterTask ?? laterMilestone;
+  if (conflict) {
+    throw new ValidationError(
+      `Can't set the target date before "${conflict.title}", which is already due after it`
+    );
+  }
+}

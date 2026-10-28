@@ -575,6 +575,89 @@ Security hardening (TLS/headers, CSRF protection, dependency scanning, external
 pen test, DPDP Act review) happens continuously during build and as a gate
 before go-live — see `docs/decisions.md` #12.
 
+## Role dashboards, as built
+
+`/dashboard` (`app/dashboard/page.tsx`) branches by `user.role` into four
+read-only summaries, each backed by its own query functions in
+`lib/dashboard/queries.ts`. Every query there is already scoped the same
+way the rest of the app scopes that role (assigned projects for Project
+Lead, `conductedById`/`assigneeId` for NPD Executive, `clientOrgId` for
+Client, org-wide for Admin) — a dashboard is a summary view, not a new
+access path, so nothing it shows is something that role couldn't already
+reach by navigating to the underlying page.
+
+- **Admin** — active-project count, overdue tasks/milestones, pending
+  formulation approvals, overdue invoices, unverified payments.
+- **Project Lead** — the same, scoped to projects they lead or are
+  assigned to; "pending approvals" here means versions waiting on *their*
+  sign-off.
+- **NPD Executive** — their own open tasks, draft formulation versions not
+  yet submitted, rejected versions needing revision, open trials.
+- **Client** — their organization's projects and milestones, recent
+  `CLIENT_VISIBLE` documents, open (non-`DRAFT`) invoices.
+
+## Audit log viewer, as built
+
+`AuditLog` rows are written throughout the app (every sensitive
+create/update already calls `logAudit()` inside the same transaction as
+the change — see `lib/audit.ts`), but until now there was no way to read
+them back. Two additions, both Admin-only and strictly read-only, matching
+baseline §10 ("Audit log: Read-only; cannot edit/delete") — neither this
+route nor this page has a PATCH/DELETE, and none should ever be added:
+
+- `GET /api/audit-log` — optional `actorId`/`targetType`/`targetId`/`action`
+  filters (action matches as a substring), offset-paginated newest-first,
+  50 per page.
+- `/admin/audit-log` — the same filters as a plain GET form (so a filtered
+  view is a shareable URL, not client-side state), with Newer/Older paging.
+
+## Authorization test suite, as built
+
+`vitest` was already configured (`npm test`) but had zero test files.
+**Sandbox note:** this environment can't run `prisma generate` (egress to
+`binaries.prisma.sh` is blocked — same root cause documented in
+`lib/costing/compute.ts`'s header comment), so a real integration suite
+against a live Postgres test database couldn't be exercised here. What's
+built instead, under `tests/`:
+
+- `tests/setup/fakePrisma.ts` — a small in-memory stand-in for the exact
+  handful of Prisma calls the authorization helpers make (`project.findUnique`,
+  `projectAssignment.findUnique`, `task.findFirst`, `milestone.findFirst`),
+  wired in per test file via `vi.mock("@/lib/prisma", ...)`.
+- `tests/auth/project-access.test.ts` — `assertProjectAccess` (the single
+  record-level gate used everywhere a Project is touched): Admin passes
+  unconditionally, a Client from one organization is blocked from another
+  organization's project (**cross-client isolation**), a Project Lead/NPD
+  Executive is blocked from a project they have no `ProjectAssignment` row
+  for (**project-assignment boundary**), and a nonexistent project is
+  rejected rather than silently passing.
+- `tests/projects/due-date.test.ts` — both directions of the due-date fix
+  below: a task/milestone due date can't exceed its project's target date,
+  and a project's target date can't be shrunk below an already-scheduled
+  task/milestone (the latter was extracted into
+  `assertNoLaterDueDatesThan()` in `lib/projects/due-date.ts`, out of the
+  `PATCH /api/projects/[id]` route body, specifically so it could be unit
+  tested the same way).
+- `tests/costing/scope.test.ts` — the full Costing/Invoices permission
+  matrix as pure-function assertions (`canReadCosting`, `canManageCosting`,
+  `canReadInvoices`, `canManageInvoices`, `isInvoiceVisibleToClient`):
+  NPD Executive has no access to either; Client reads invoices but never
+  cost sheets; only Admin manages/writes either; `DRAFT` invoices are
+  hidden from Client.
+- `tests/documents/scope.test.ts` — the upload-type-by-role matrix
+  (`canUploadType`, `canManageVisibility`): NPD Executive limited to
+  `TECHNICAL_SPEC`/`TRIAL_RECORD`, Client limited to `OTHER` only, only
+  Admin/Project Lead can change a document's visibility.
+- `tests/costing/compute.test.ts` — not an authorization test, but guards
+  `computeCostSheetTotals`'s arithmetic (yield/wastage application, the
+  zero-yield and zero-batch-size guards) against silent regressions.
+
+Run with `npm test`. **Before going live**, point `DATABASE_URL` at a real
+test database and add an integration layer on top of this (the same
+boundary cases, exercised through the actual API routes and a real
+Postgres instance) — these unit-level tests prove the authorization
+*logic* is correct, not that every route actually calls it.
+
 ## Business rules this schema encodes
 
 See [`docs/decisions.md`](docs/decisions.md) for the full list. In short:

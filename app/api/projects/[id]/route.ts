@@ -6,7 +6,8 @@ import { CLIENT_SAFE_PROJECT_SELECT } from "@/lib/projects/scope";
 import { logAudit } from "@/lib/audit";
 import { logProjectActivity } from "@/lib/projects/activity";
 import { isSameOrigin } from "@/lib/security/origin";
-import { errorResponse, ValidationError } from "@/lib/api/respond";
+import { errorResponse } from "@/lib/api/respond";
+import { assertNoLaterDueDatesThan } from "@/lib/projects/due-date";
 
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   try {
@@ -71,17 +72,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     // inconsistency either direction, so it's rejected here too rather
     // than only guarded against on creation.
     if (input.targetDate) {
-      const newTarget = new Date(input.targetDate);
-      const [laterTask, laterMilestone] = await Promise.all([
-        prisma.task.findFirst({ where: { projectId: params.id, dueDate: { gt: newTarget } }, select: { title: true } }),
-        prisma.milestone.findFirst({ where: { projectId: params.id, dueDate: { gt: newTarget } }, select: { title: true } }),
-      ]);
-      const conflict = laterTask ?? laterMilestone;
-      if (conflict) {
-        throw new ValidationError(
-          `Can't set the target date before "${conflict.title}", which is already due after it`
-        );
-      }
+      await assertNoLaterDueDatesThan(new Date(input.targetDate), params.id);
     }
 
     const updated = await prisma.$transaction(async (tx) => {
