@@ -19,12 +19,13 @@ This stack was chosen because the repository had no existing code to audit or
 preserve at project start (confirmed empty on 2026-10-28); it's the stack the
 original system-design baseline recommends for a modular-monolith MVP.
 
-> **Developing on Mac, running on Windows?** The one real difference between
-> platforms is database authentication: Homebrew's local Postgres on macOS
-> needs no password at all (`trust` auth), while Windows' installer always
-> requires one. Everything else — Node, Prisma, Next.js, Prisma Studio — is
-> identical on both. See **Installing PostgreSQL on Windows** / **on macOS**
-> below for exact connection strings for each.
+> **Developing on Mac, running on Windows?** See
+> [`docs/platform-notes.md`](docs/platform-notes.md) — it tracks every
+> macOS/Windows difference found so far (starting with database
+> authentication: Homebrew's local Postgres needs no password at all, while
+> Windows' installer always requires one) and is the place to add a new one
+> whenever "works on my machine" turns out to be platform-specific. The
+> step-by-step install instructions for each OS are still below.
 
 ## Installing PostgreSQL on Windows
 
