@@ -184,6 +184,20 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   const canManage = user.role === "ADMIN" || user.role === "PROJECT_LEAD";
   const assignedUserIds = new Set(project.assignments.map((a) => a.userId));
 
+  // 29 Oct 2026 (third pass): the lock banner below used to say "Go verify
+  // the advance invoice" even when no ADVANCE_60 invoice had been raised
+  // yet — there was nothing to verify, so the link just landed Admin on an
+  // empty Costing & Invoicing page with no clue what to do next. This
+  // tells the two states apart so the CTA actually matches what's needed:
+  // raise + send the invoice first, then (once the client's paid and
+  // claimed it) verify it.
+  const advanceInvoice = !project.advancePaymentVerifiedAt
+    ? await prisma.invoice.findFirst({
+        where: { projectId: project.id, paymentStage: "ADVANCE_60" },
+        select: { id: true, status: true },
+      })
+    : null;
+
   const candidates = canManage
     ? await prisma.user.findMany({
         where: {
@@ -212,7 +226,13 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           {user.role === "ADMIN" ? (
             <>
               {" "}
-              <Link href={`/projects/${project.id}/costing`}>Go verify the advance invoice →</Link>
+              {!advanceInvoice ? (
+                <Link href={`/projects/${project.id}/costing`}>Raise the 60% advance invoice →</Link>
+              ) : advanceInvoice.status === "DRAFT" ? (
+                <Link href={`/invoices/${advanceInvoice.id}`}>Send the advance invoice to the client →</Link>
+              ) : (
+                <Link href={`/invoices/${advanceInvoice.id}`}>Go verify the advance payment →</Link>
+              )}
             </>
           ) : null}
         </div>
