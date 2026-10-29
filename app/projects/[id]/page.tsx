@@ -40,6 +40,19 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
     });
     if (!project) notFound();
 
+    // 29 Oct 2026 (third pass): a direct path to paying the 60% advance,
+    // not just a locked-work banner. Only looked up while the advance is
+    // still unverified (execution-gate.ts's only unlock condition); once
+    // verified, there's nothing left to pay here. A DRAFT invoice is
+    // excluded — isInvoiceVisibleToClient hides those from Client, same
+    // rule as everywhere else invoices are shown to a Client.
+    const advanceInvoice = !project.advancePaymentVerifiedAt
+      ? await prisma.invoice.findFirst({
+          where: { projectId: project.id, paymentStage: "ADVANCE_60", status: { not: "DRAFT" } },
+          select: { id: true, invoiceNumber: true, amount: true, currency: true },
+        })
+      : null;
+
     // Item #3: MRP visibility — reads ONLY the single published number,
     // never the CostSheet itself (canReadCosting still denies Client any
     // direct access to that model/route).
@@ -76,7 +89,17 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         {!project.advancePaymentVerifiedAt ? (
           <div className="fm-advance-banner" role="status">
             Work on this project starts once your 60% advance payment is verified.
-            You&apos;ll see a notification here as soon as that happens.
+            {advanceInvoice ? (
+              <>
+                {" "}
+                <Link href={`/invoices/${advanceInvoice.id}`} style={{ fontWeight: 600 }}>
+                  Pay {advanceInvoice.amount.toString()} {advanceInvoice.currency} now →
+                </Link>{" "}
+                — send us your payment details there and we&apos;ll confirm it.
+              </>
+            ) : (
+              " You'll see a notification here as soon as that happens."
+            )}
           </div>
         ) : null}
 

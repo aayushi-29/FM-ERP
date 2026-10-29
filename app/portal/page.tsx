@@ -65,7 +65,17 @@ export default async function ClientPortalPage() {
       {projects.length === 0 ? (
         <p style={{ color: "#777" }}>No projects yet.</p>
       ) : (
-        projects.map((p) => (
+        projects.map((p) => {
+          // Client never sees a DRAFT invoice — same rule as everywhere
+          // else (lib/costing/scope.ts's isInvoiceVisibleToClient); this
+          // list wasn't filtering that out before, so a not-yet-sent draft
+          // could show up here and 404 when clicked.
+          const visibleInvoices = p.invoices.filter((inv: (typeof p.invoices)[number]) => inv.status !== "DRAFT");
+          const advanceInvoice = !p.advancePaymentVerifiedAt
+            ? visibleInvoices.find((inv: (typeof visibleInvoices)[number]) => inv.paymentStage === "ADVANCE_60")
+            : undefined;
+
+          return (
           <section key={p.id} style={{ marginTop: 28, paddingTop: 16, borderTop: "1px solid #eee" }}>
             <h2 style={{ fontSize: "1.1rem", marginBottom: 2 }}>
               <Link href={`/projects/${p.id}`}>{p.name}</Link>
@@ -79,6 +89,14 @@ export default async function ClientPortalPage() {
             {!p.advancePaymentVerifiedAt ? (
               <p className="fm-advance-banner" role="status" style={{ fontSize: ".85rem" }}>
                 Work on this project starts once your 60% advance payment is verified.
+                {advanceInvoice ? (
+                  <>
+                    {" "}
+                    <Link href={`/invoices/${advanceInvoice.id}`} style={{ fontWeight: 600 }}>
+                      Pay {advanceInvoice.amount.toString()} now →
+                    </Link>
+                  </>
+                ) : null}
               </p>
             ) : null}
 
@@ -125,11 +143,11 @@ export default async function ClientPortalPage() {
 
               <div>
                 <h3 style={{ fontSize: ".92rem" }}>Invoices</h3>
-                {p.invoices.length === 0 ? (
+                {visibleInvoices.length === 0 ? (
                   <p style={{ color: "#777", fontSize: ".85rem" }}>None yet.</p>
                 ) : (
                   <ul style={{ listStyle: "none", padding: 0, fontSize: ".85rem" }}>
-                    {p.invoices.map((inv) => (
+                    {visibleInvoices.map((inv) => (
                       <li key={inv.id} style={{ padding: "4px 0", borderBottom: "1px solid #f3f3f3" }}>
                         <Link href={`/invoices/${inv.id}`}>{inv.invoiceNumber}</Link>
                         <span style={{ color: "#777" }}>
@@ -143,7 +161,8 @@ export default async function ClientPortalPage() {
               </div>
             </div>
           </section>
-        ))
+          );
+        })
       )}
     </Shell>
   );

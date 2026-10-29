@@ -55,6 +55,22 @@ export async function POST(request: Request, { params }: { params: { id: string 
         },
         tx
       );
+      // Same "work can now begin" moment as app/api/payments/[id]/verify
+      // (see lib/payments/claims.ts's acknowledgePaymentClaim, which sets
+      // Project.advancePaymentVerifiedAt for this stage) — notify both
+      // sides the project unlocked, not just that the claim was acknowledged.
+      if (claim.invoice.paymentStage === "ADVANCE_60") {
+        await notify(
+          {
+            projectId: claim.invoice.projectId,
+            audience: "both",
+            type: "payment.verified",
+            message: "The 60% advance has been verified — work on this project can now begin.",
+            link: `/projects/${claim.invoice.projectId}/costing`,
+          },
+          tx
+        );
+      }
 
       return r;
     });

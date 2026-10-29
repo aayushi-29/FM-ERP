@@ -45,11 +45,20 @@ describe("assertInvoiceClaimable / assertClaimPending", () => {
 
 function makeFakeDb(opts: {
   claim: { id: string; invoiceId: string; status: string; amount: Decimal; paymentMode: string; acknowledgementOrInvoiceNumber: string };
-  invoice: { id: string; status: string; amount: Decimal; payments: { amount: Decimal }[]; creditNotes: { amount: Decimal }[] };
+  invoice: {
+    id: string;
+    status: string;
+    amount: Decimal;
+    payments: { amount: Decimal }[];
+    creditNotes: { amount: Decimal }[];
+    projectId?: string;
+    paymentStage?: string | null;
+  };
 }) {
   const claims = { ...opts.claim };
   const invoice = { ...opts.invoice };
   const payments: { id: string; invoiceId: string; amount: Decimal }[] = [];
+  const projectUpdates: { where: { id: string }; data: Record<string, unknown> }[] = [];
 
   return {
     paymentClaim: {
@@ -73,6 +82,14 @@ function makeFakeDb(opts: {
         return payment;
       },
     },
+    project: {
+      update: async (args: { where: { id: string }; data: Record<string, unknown> }) => {
+        projectUpdates.push(args);
+        return { id: args.where.id, ...args.data };
+      },
+    },
+    // test-only accessor, not part of the real Prisma client shape
+    __projectUpdates: projectUpdates,
   };
 }
 
@@ -96,6 +113,67 @@ describe("acknowledgePaymentClaim", () => {
     expect(result.claim.status).toBe("ACKNOWLEDGED");
     expect(result.payment.amount.toString()).toBe("500");
     expect(result.invoice.status).toBe("PAID");
+  });
+
+  // 29 Oct 2026 (third pass): regression test for the bug this fix closes —
+  // acknowledging a claim creates an already-verified Payment, so it never
+  // passed through app/api/payments/[id]/verify (the only other place that
+  // used to set Project.advancePaymentVerifiedAt), permanently locking
+  // execution even after the client's 60% advance was acknowledged.
+  it("sets Project.advancePaymentVerifiedAt when acknowledging a claim on the ADVANCE_60 invoice", async () => {
+    vi.resetModules();
+    const db = makeFakeDb({
+      claim: {
+        id: "claim-1",
+        invoiceId: "inv-1",
+        status: "PENDING",
+        amount: new Decimal(6000),
+        paymentMode: "UPI",
+        acknowledgementOrInvoiceNumber: "ACK123",
+      },
+      invoice: {
+        id: "inv-1",
+        status: "SENT",
+        amount: new Decimal(6000),
+        payments: [],
+        creditNotes: [],
+        projectId: "proj-1",
+        paymentStage: "ADVANCE_60",
+      },
+    });
+    const { acknowledgePaymentClaim } = await import("@/lib/payments/claims");
+    await acknowledgePaymentClaim({ claimId: "claim-1", respondedById: "admin-1" }, db as never);
+
+    expect(db.__projectUpdates).toEqual([
+      { where: { id: "proj-1" }, data: { advancePaymentVerifiedAt: expect.any(Date) } },
+    ]);
+  });
+
+  it("does NOT touch Project.advancePaymentVerifiedAt for a non-advance invoice", async () => {
+    vi.resetModules();
+    const db = makeFakeDb({
+      claim: {
+        id: "claim-1",
+        invoiceId: "inv-1",
+        status: "PENDING",
+        amount: new Decimal(2500),
+        paymentMode: "UPI",
+        acknowledgementOrInvoiceNumber: "ACK123",
+      },
+      invoice: {
+        id: "inv-1",
+        status: "SENT",
+        amount: new Decimal(2500),
+        payments: [],
+        creditNotes: [],
+        projectId: "proj-1",
+        paymentStage: "SECOND_25",
+      },
+    });
+    const { acknowledgePaymentClaim } = await import("@/lib/payments/claims");
+    await acknowledgePaymentClaim({ claimId: "claim-1", respondedById: "admin-1" }, db as never);
+
+    expect(db.__projectUpdates).toEqual([]);
   });
 
   it("refuses to acknowledge a claim that's already been responded to", async () => {

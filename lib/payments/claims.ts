@@ -80,6 +80,24 @@ export async function acknowledgePaymentClaim(
   );
   const updatedInvoice = await db.invoice.update({ where: { id: invoice.id }, data: { status: nextStatus } });
 
+  // 29 Oct 2026 (third pass): this Payment is created already-verified
+  // (verifiedById is set above, unlike a manually recorded payment) — so
+  // it never shows up in InvoiceActions' "Verify payment" list, and
+  // app/api/payments/[id]/verify/route.ts (the only other place that sets
+  // Project.advancePaymentVerifiedAt) never runs for it. Without this, a
+  // client who paid the 60% advance via a claim — exactly the flow this
+  // feature exists for — would have Admin acknowledge it, see the invoice
+  // marked PAID, and still find the project permanently locked, since
+  // nothing ever unlocked execution. Mirrors the manual-verify route's own
+  // side effect exactly, so both paths to "the advance is verified" behave
+  // the same way.
+  if (invoice.paymentStage === "ADVANCE_60") {
+    await db.project.update({
+      where: { id: invoice.projectId },
+      data: { advancePaymentVerifiedAt: new Date() },
+    });
+  }
+
   const updatedClaim = await db.paymentClaim.update({
     where: { id: claim.id },
     data: {
