@@ -1342,6 +1342,53 @@ main {
   --fm-table-card-bg: rgba(40, 28, 18, 0.55);
 }
 
+/* 29 Oct 2026 (fourth pass): Users page, grouped by role per the user's
+   request — one column per role (Admin/Project Lead/NPD Executive/
+   Client), each a stack of that role's user cards, instead of one flat
+   grid mixing every role together. */
+.fm-role-columns {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 1000px) {
+  .fm-role-columns {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .fm-role-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fm-role-column-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 4px 10px;
+}
+
+.fm-role-column-head h3 {
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+.fm-role-column-count {
+  font-size: 0.74rem;
+  color: var(--fm-text-muted);
+  font-weight: 600;
+}
+
+.fm-role-column-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .fm-li-meta {
   display: block;
   font-size: 0.78rem;

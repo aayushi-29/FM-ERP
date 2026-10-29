@@ -1,18 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-// Counts up from 0 to `value` on mount instead of just printing a static
-// number — a small, honest bit of motion (not a loop, not on every
-// re-render) that makes the dashboard feel alive rather than a screenshot.
+// 29 Oct 2026 (fourth pass): real bug fix, confirmed with the user — every
+// dashboard stat tile was permanently stuck at 0 in `next dev`, even when
+// the list directly below it (built from that exact same number) showed
+// real rows. Root cause: React 18 Strict Mode (on by default in dev)
+// double-invokes this effect — mount, cleanup, mount again, all before the
+// first paint. The old `mounted` ref guard was meant to stop the
+// animation restarting on that second invocation, but it did the opposite:
+// the FIRST invocation's `requestAnimationFrame` loop gets cancelled by
+// Strict Mode's synthetic cleanup before it ever ticks, and the guard then
+// stopped the SECOND (real, lasting) invocation from starting a fresh one
+// — so `display` never left its initial 0. Removing the guard fixes it:
+// the first (cancelled) loop is harmless, and the second invocation's loop
+// runs uninterrupted to completion, same as it already does in a
+// production build (where Strict Mode's double-invoke doesn't happen).
 export function StatValue({ value }: { value: number }) {
   const [display, setDisplay] = useState(0);
-  const mounted = useRef(false);
 
   useEffect(() => {
-    if (mounted.current) return; // StrictMode double-invoke guard
-    mounted.current = true;
-
     if (value === 0 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setDisplay(value);
       return;
@@ -30,8 +37,7 @@ export function StatValue({ value }: { value: number }) {
 
     const raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [value]);
 
   return <>{display}</>;
 }
