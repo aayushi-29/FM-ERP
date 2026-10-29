@@ -55,17 +55,25 @@ export default async function ClientPortalPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  const statusBadgeClass: Record<string, string> = {
+    ACTIVE: "fm-badge fm-badge-good",
+    ON_HOLD: "fm-badge fm-badge-gold",
+    COMPLETED: "fm-badge",
+    CANCELLED: "fm-badge fm-badge-warn",
+  };
+
   return (
     <Shell user={user}>
-      <h1>Client Portal</h1>
-      <p style={{ color: "#555", fontSize: ".9rem" }}>
-        Status, milestones, approved documents, and invoices for all your projects in one place.
-      </p>
+      <div className="fm-page-head">
+        <h1>Client Portal</h1>
+        <p>Status, milestones, approved documents, and invoices for all your projects in one place.</p>
+      </div>
 
       {projects.length === 0 ? (
-        <p style={{ color: "#777" }}>No projects yet.</p>
+        <p className="fm-empty">No projects yet.</p>
       ) : (
-        projects.map((p) => {
+        <div className="fm-section-grid" style={{ gridTemplateColumns: "1fr" }}>
+        {projects.map((p) => {
           // Client never sees a DRAFT invoice — same rule as everywhere
           // else (lib/costing/scope.ts's isInvoiceVisibleToClient); this
           // list wasn't filtering that out before, so a not-yet-sent draft
@@ -76,15 +84,19 @@ export default async function ClientPortalPage() {
             : undefined;
 
           return (
-          <section key={p.id} style={{ marginTop: 28, paddingTop: 16, borderTop: "1px solid #eee" }}>
-            <h2 style={{ fontSize: "1.1rem", marginBottom: 2 }}>
-              <Link href={`/projects/${p.id}`}>{p.name}</Link>
-            </h2>
-            <p style={{ color: "#555", fontSize: ".9rem", margin: "2px 0 10px" }}>
-              Status: {p.status}
-              {p.targetDate ? ` · target ${new Date(p.targetDate).toLocaleDateString()}` : ""}
-              {p.lead ? ` · led by ${p.lead.name}` : ""}
-            </p>
+          <div key={p.id} className="glass glass-sm glass-card fm-section">
+            <div className="fm-entity-card-head" style={{ marginBottom: 2 }}>
+              <div>
+                <h3 style={{ fontSize: "1.1rem" }}>
+                  <Link href={`/projects/${p.id}`}>{p.name}</Link>
+                </h3>
+                <p className="fm-li-meta">
+                  {p.targetDate ? `Target ${new Date(p.targetDate).toLocaleDateString()}` : ""}
+                  {p.lead ? ` · led by ${p.lead.name}` : ""}
+                </p>
+              </div>
+              <span className={statusBadgeClass[p.status] ?? "fm-badge"}>{p.status}</span>
+            </div>
 
             {!p.advancePaymentVerifiedAt ? (
               <p className="fm-advance-banner" role="status" style={{ fontSize: ".85rem" }}>
@@ -100,17 +112,17 @@ export default async function ClientPortalPage() {
               </p>
             ) : null}
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginTop: 8 }}>
+            <div className="fm-section-grid" style={{ marginTop: 14, marginBottom: 0 }}>
               <div>
-                <h3 style={{ fontSize: ".92rem" }}>Milestones</h3>
+                <h3>Milestones</h3>
                 {p.milestones.length === 0 ? (
-                  <p style={{ color: "#777", fontSize: ".85rem" }}>None yet.</p>
+                  <p className="fm-empty">None yet.</p>
                 ) : (
                   <ul style={{ listStyle: "none", padding: 0, fontSize: ".85rem" }}>
                     {p.milestones.map((m) => (
-                      <li key={m.id} style={{ padding: "4px 0", borderBottom: "1px solid #f3f3f3" }}>
+                      <li key={m.id} style={{ padding: "4px 0", borderBottom: "1px solid rgba(90,70,40,0.14)" }}>
                         {m.title}
-                        <span style={{ color: "#777" }}>
+                        <span className="fm-li-meta" style={{ display: "inline" }}>
                           {" · "}{m.status}
                           {m.dueDate ? ` · due ${new Date(m.dueDate).toLocaleDateString()}` : ""}
                         </span>
@@ -121,15 +133,15 @@ export default async function ClientPortalPage() {
               </div>
 
               <div>
-                <h3 style={{ fontSize: ".92rem" }}>Approved documents</h3>
+                <h3>Approved documents</h3>
                 {p.documents.length === 0 ? (
-                  <p style={{ color: "#777", fontSize: ".85rem" }}>None shared yet.</p>
+                  <p className="fm-empty">None shared yet.</p>
                 ) : (
                   <ul style={{ listStyle: "none", padding: 0, fontSize: ".85rem" }}>
                     {p.documents.map((d) => (
-                      <li key={d.id} style={{ padding: "4px 0", borderBottom: "1px solid #f3f3f3" }}>
+                      <li key={d.id} style={{ padding: "4px 0", borderBottom: "1px solid rgba(90,70,40,0.14)" }}>
                         {d.type}
-                        <span style={{ color: "#777" }}>
+                        <span className="fm-li-meta" style={{ display: "inline" }}>
                           {" · "}{new Date(d.createdAt).toLocaleDateString()}
                         </span>
                       </li>
@@ -142,15 +154,15 @@ export default async function ClientPortalPage() {
               </div>
 
               <div>
-                <h3 style={{ fontSize: ".92rem" }}>Invoices</h3>
+                <h3>Invoices</h3>
                 {visibleInvoices.length === 0 ? (
-                  <p style={{ color: "#777", fontSize: ".85rem" }}>None yet.</p>
+                  <p className="fm-empty">None yet.</p>
                 ) : (
                   <ul style={{ listStyle: "none", padding: 0, fontSize: ".85rem" }}>
                     {visibleInvoices.map((inv) => (
-                      <li key={inv.id} style={{ padding: "4px 0", borderBottom: "1px solid #f3f3f3" }}>
+                      <li key={inv.id} style={{ padding: "4px 0", borderBottom: "1px solid rgba(90,70,40,0.14)" }}>
                         <Link href={`/invoices/${inv.id}`}>{inv.invoiceNumber}</Link>
-                        <span style={{ color: "#777" }}>
+                        <span className="fm-li-meta" style={{ display: "inline" }}>
                           {" · "}{inv.amount.toString()} · {inv.status}
                           {inv.paymentStage ? ` · ${inv.paymentStage}` : ""}
                         </span>
@@ -160,9 +172,10 @@ export default async function ClientPortalPage() {
                 )}
               </div>
             </div>
-          </section>
+          </div>
           );
-        })
+        })}
+        </div>
       )}
     </Shell>
   );

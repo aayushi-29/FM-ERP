@@ -22,31 +22,47 @@ export default async function ClientsPage() {
 
   return (
     <Shell user={user}>
-      <h1>Clients</h1>
+      <div className="fm-page-head">
+        <h1>Clients</h1>
+      </div>
       {user.role === "PROJECT_LEAD" ? (
-        <p style={{ color: "#555" }}>Showing only organizations you&apos;re assigned to via a project.</p>
+        <p className="fm-li-meta" style={{ marginBottom: 16 }}>
+          Showing only organizations you&apos;re assigned to via a project.
+        </p>
       ) : null}
 
       {clients.length === 0 ? (
-        <p>No client organizations yet.</p>
+        <p className="fm-empty">No client organizations yet.</p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
+        <div className="fm-section-grid">
           {clients.map((c) => (
-            <li key={c.id} style={{ padding: "10px 0", borderBottom: "1px solid #eee" }}>
-              <Link href={`/clients/${c.id}`}>{c.name}</Link>
-              <span style={{ color: "#777", fontSize: ".85rem", marginLeft: 8 }}>
-                {c._count.projects} project{c._count.projects === 1 ? "" : "s"} · {c._count.contacts} contact{c._count.contacts === 1 ? "" : "s"}
-              </span>
-            </li>
+            <Link key={c.id} href={`/clients/${c.id}`} className="glass glass-sm glass-card fm-entity-card">
+              <div className="fm-entity-card-head">
+                <h3>{c.name}</h3>
+              </div>
+
+              <div className="fm-entity-card-stats">
+                <div className="fm-entity-card-stat">
+                  <span className="fm-entity-card-stat-value">{c._count.projects}</span>
+                  <span className="fm-entity-card-stat-label">Projects</span>
+                </div>
+                <div className="fm-entity-card-stat">
+                  <span className="fm-entity-card-stat-value">{c._count.contacts}</span>
+                  <span className="fm-entity-card-stat-label">Contacts</span>
+                </div>
+              </div>
+
+              <span className="fm-entity-card-cta">Open →</span>
+            </Link>
           ))}
-        </ul>
+        </div>
       )}
 
       {user.role === "ADMIN" ? (
-        <>
-          <h2 style={{ marginTop: 32, fontSize: "1.1rem" }}>Add a client organization</h2>
+        <div className="glass glass-sm glass-card fm-section" style={{ marginTop: 24, maxWidth: 420 }}>
+          <h3>Add a client organization</h3>
           <NewClientForm />
-        </>
+        </div>
       ) : null}
     </Shell>
   );

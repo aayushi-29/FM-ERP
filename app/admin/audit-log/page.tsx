@@ -58,75 +58,79 @@ export default async function AuditLogPage({
 
   return (
     <Shell user={user}>
-      <h1>Audit log</h1>
-      <p style={{ color: "#555" }}>
-        Admin-only, read-only — every sensitive action in the app writes here and nothing ever edits or deletes
-        a row. {total} entr{total === 1 ? "y" : "ies"}
-        {Object.values(filterParams).some(Boolean) ? " matching these filters" : ""}.
-      </p>
+      <div className="fm-page-head">
+        <h1>Audit log</h1>
+        <p>
+          Admin-only, read-only — every sensitive action in the app writes here and nothing ever edits or deletes
+          a row. {total} entr{total === 1 ? "y" : "ies"}
+          {Object.values(filterParams).some(Boolean) ? " matching these filters" : ""}.
+        </p>
+      </div>
 
-      <form method="get" style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "16px 0" }}>
-        <input name="actorId" placeholder="Actor ID" defaultValue={actorId ?? ""} style={{ padding: 6 }} />
-        <input name="targetType" placeholder="Target type (e.g. Invoice)" defaultValue={targetType ?? ""} style={{ padding: 6 }} />
-        <input name="targetId" placeholder="Target ID" defaultValue={targetId ?? ""} style={{ padding: 6 }} />
-        <input name="action" placeholder="Action contains…" defaultValue={action ?? ""} style={{ padding: 6 }} />
-        <button type="submit" style={{ padding: "6px 14px" }}>
-          Filter
-        </button>
-        {Object.values(filterParams).some(Boolean) ? (
-          <Link href="/admin/audit-log" style={{ alignSelf: "center" }}>
-            Clear
-          </Link>
-        ) : null}
-      </form>
+      <div className="glass glass-sm glass-card fm-section">
+        <form method="get" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+          <input name="actorId" placeholder="Actor ID" defaultValue={actorId ?? ""} style={{ padding: 6 }} />
+          <input name="targetType" placeholder="Target type (e.g. Invoice)" defaultValue={targetType ?? ""} style={{ padding: 6 }} />
+          <input name="targetId" placeholder="Target ID" defaultValue={targetId ?? ""} style={{ padding: 6 }} />
+          <input name="action" placeholder="Action contains…" defaultValue={action ?? ""} style={{ padding: 6 }} />
+          <button type="submit" style={{ padding: "6px 14px" }}>
+            Filter
+          </button>
+          {Object.values(filterParams).some(Boolean) ? (
+            <Link href="/admin/audit-log" style={{ alignSelf: "center" }}>
+              Clear
+            </Link>
+          ) : null}
+        </form>
 
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: ".85rem" }}>
-        <thead>
-          <tr style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
-            <th style={{ padding: "6px 8px" }}>When</th>
-            <th style={{ padding: "6px 8px" }}>Actor</th>
-            <th style={{ padding: "6px 8px" }}>Action</th>
-            <th style={{ padding: "6px 8px" }}>Target</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.length === 0 ? (
-            <tr>
-              <td colSpan={4} style={{ padding: "16px 8px", color: "#888" }}>
-                No audit entries match.
-              </td>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: ".85rem" }}>
+          <thead>
+            <tr style={{ textAlign: "left", borderBottom: "1px solid rgba(90,70,40,0.25)" }}>
+              <th style={{ padding: "6px 8px" }}>When</th>
+              <th style={{ padding: "6px 8px" }}>Actor</th>
+              <th style={{ padding: "6px 8px" }}>Action</th>
+              <th style={{ padding: "6px 8px" }}>Target</th>
             </tr>
-          ) : (
-            entries.map((e) => (
-              <tr key={e.id} style={{ borderBottom: "1px solid #eee" }}>
-                <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>{new Date(e.createdAt).toLocaleString()}</td>
-                <td style={{ padding: "6px 8px" }}>
-                  {e.actor.name} <span style={{ color: "#888" }}>({e.actor.email})</span>
-                </td>
-                <td style={{ padding: "6px 8px" }}>{e.action}</td>
-                <td style={{ padding: "6px 8px" }}>
-                  {e.targetType} <span style={{ color: "#888" }}>{e.targetId}</span>
+          </thead>
+          <tbody>
+            {entries.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="fm-empty" style={{ padding: "16px 8px" }}>
+                  No audit entries match.
                 </td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ) : (
+              entries.map((e) => (
+                <tr key={e.id} style={{ borderBottom: "1px solid rgba(90,70,40,0.14)" }}>
+                  <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>{new Date(e.createdAt).toLocaleString()}</td>
+                  <td style={{ padding: "6px 8px" }}>
+                    {e.actor.name} <span className="fm-li-meta" style={{ display: "inline" }}>({e.actor.email})</span>
+                  </td>
+                  <td style={{ padding: "6px 8px" }}>{e.action}</td>
+                  <td style={{ padding: "6px 8px" }}>
+                    {e.targetType} <span className="fm-li-meta" style={{ display: "inline" }}>{e.targetId}</span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
 
-      <div style={{ display: "flex", gap: 12, marginTop: 16, alignItems: "center" }}>
-        {page > 1 ? (
-          <Link href={buildHref(filterParams, { page: String(page - 1) })}>&larr; Newer</Link>
-        ) : (
-          <span style={{ color: "#bbb" }}>&larr; Newer</span>
-        )}
-        <span style={{ color: "#555", fontSize: ".85rem" }}>
-          Page {page} of {totalPages}
-        </span>
-        {page < totalPages ? (
-          <Link href={buildHref(filterParams, { page: String(page + 1) })}>Older &rarr;</Link>
-        ) : (
-          <span style={{ color: "#bbb" }}>Older &rarr;</span>
-        )}
+        <div style={{ display: "flex", gap: 12, marginTop: 16, alignItems: "center" }}>
+          {page > 1 ? (
+            <Link href={buildHref(filterParams, { page: String(page - 1) })}>&larr; Newer</Link>
+          ) : (
+            <span className="fm-li-meta">&larr; Newer</span>
+          )}
+          <span className="fm-li-meta">
+            Page {page} of {totalPages}
+          </span>
+          {page < totalPages ? (
+            <Link href={buildHref(filterParams, { page: String(page + 1) })}>Older &rarr;</Link>
+          ) : (
+            <span className="fm-li-meta">Older &rarr;</span>
+          )}
+        </div>
       </div>
     </Shell>
   );

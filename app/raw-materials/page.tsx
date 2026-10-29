@@ -61,46 +61,51 @@ export default async function RawMaterialsPage() {
 
   return (
     <Shell user={user}>
-      <h1>Raw Materials</h1>
-      <p style={{ color: "#555", fontSize: ".9rem" }}>
-        See every supplier and the raw materials bought from them, keep stock counts up to
-        date, and get a warning here as soon as something runs low.
-      </p>
+      <div className="fm-page-head">
+        <h1>Raw Materials</h1>
+        <p>
+          See every supplier and the raw materials bought from them, keep stock counts up to
+          date, and get a warning here as soon as something runs low.
+        </p>
+      </div>
       {lowStockCount > 0 ? (
-        <p style={{ color: "#b00020", fontWeight: 600, fontSize: ".9rem" }} role="status">
+        <p className="fm-badge fm-badge-warn" style={{ marginBottom: 16 }} role="status">
           ⚠ {lowStockCount} material{lowStockCount === 1 ? "" : "s"} running low — check the Low stock badges below.
         </p>
       ) : null}
 
-      <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Suppliers</h2>
-      {suppliers.length === 0 ? (
-        <p style={{ color: "#777" }}>No suppliers yet.</p>
-      ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {suppliers.map((s) => (
-            <li key={s.id} style={{ padding: "6px 0", borderBottom: "1px solid #eee", fontSize: ".9rem" }}>
-              <strong>{s.name}</strong>
-              <span style={{ color: "#777" }}>
-                {s.contactPersonName ? ` · ${s.contactPersonName}` : ""}
-                {s.contactPhone ? ` · ${s.contactPhone}` : ""}
-                {` · ${s._count.materials} material${s._count.materials === 1 ? "" : "s"}`}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {canManage ? (
-        <div style={{ marginTop: 10 }}>
-          <NewSupplierForm />
-        </div>
-      ) : null}
+      <div className="glass glass-sm glass-card fm-section" style={{ marginBottom: 18 }}>
+        <h3>Suppliers</h3>
+        {suppliers.length === 0 ? (
+          <p className="fm-empty">No suppliers yet.</p>
+        ) : (
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {suppliers.map((s) => (
+              <li key={s.id} style={{ padding: "6px 0", borderBottom: "1px solid rgba(90,70,40,0.14)", fontSize: ".9rem" }}>
+                <strong>{s.name}</strong>
+                <span className="fm-li-meta" style={{ display: "inline" }}>
+                  {s.contactPersonName ? ` · ${s.contactPersonName}` : ""}
+                  {s.contactPhone ? ` · ${s.contactPhone}` : ""}
+                  {` · ${s._count.materials} material${s._count.materials === 1 ? "" : "s"}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {canManage ? (
+          <div style={{ marginTop: 10 }}>
+            <NewSupplierForm />
+          </div>
+        ) : null}
+      </div>
 
-      <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Raw materials</h2>
-      {rawMaterials.length === 0 ? (
-        <p style={{ color: "#777" }}>No raw materials yet.</p>
-      ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: ".88rem" }}>
+      <div className="glass glass-sm glass-card fm-section">
+        <h3>Raw materials</h3>
+        {rawMaterials.length === 0 ? (
+          <p className="fm-empty">No raw materials yet.</p>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: ".88rem" }}>
             <thead>
               <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
                 <th style={{ padding: "6px 8px" }}>Name</th>
@@ -174,13 +179,14 @@ export default async function RawMaterialsPage() {
               })}
             </tbody>
           </table>
-        </div>
-      )}
-      {canManage ? (
-        <div style={{ marginTop: 10 }}>
-          <NewRawMaterialForm suppliers={suppliers.map((s) => ({ id: s.id, name: s.name }))} />
-        </div>
-      ) : null}
+          </div>
+        )}
+        {canManage ? (
+          <div style={{ marginTop: 10 }}>
+            <NewRawMaterialForm suppliers={suppliers.map((s) => ({ id: s.id, name: s.name }))} />
+          </div>
+        ) : null}
+      </div>
     </Shell>
   );
 }

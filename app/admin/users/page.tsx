@@ -21,38 +21,47 @@ export default async function AdminUsersPage() {
     prisma.clientOrganization.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
+  const roleBadgeClass: Record<string, string> = {
+    ADMIN: "fm-badge fm-badge-gold",
+    PROJECT_LEAD: "fm-badge fm-badge-good",
+    NPD_EXECUTIVE: "fm-badge",
+    CLIENT: "fm-badge",
+  };
+
   return (
     <Shell user={user}>
-      <h1>Users</h1>
-      <p style={{ color: "#555" }}>Admin-only. No self-registration — every account starts here.</p>
+      <div className="fm-page-head">
+        <h1>Users</h1>
+        <p>Admin-only. No self-registration — every account starts here.</p>
+      </div>
 
-      <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 16, fontSize: ".9rem" }}>
-        <thead>
-          <tr style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
-            <th style={{ padding: "6px 8px" }}>Name</th>
-            <th style={{ padding: "6px 8px" }}>Email</th>
-            <th style={{ padding: "6px 8px" }}>Role</th>
-            <th style={{ padding: "6px 8px" }}>Client org</th>
-            <th style={{ padding: "6px 8px" }}>Status</th>
-            <th style={{ padding: "6px 8px" }}></th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((u) => (
-            <tr key={u.id} style={{ borderBottom: "1px solid #eee" }}>
-              <td style={{ padding: "6px 8px" }}>{u.name}</td>
-              <td style={{ padding: "6px 8px" }}>{u.email}</td>
-              <td style={{ padding: "6px 8px" }}>{u.role}</td>
-              <td style={{ padding: "6px 8px" }}>{u.clientOrg?.name ?? "—"}</td>
-              <td style={{ padding: "6px 8px" }}>{u.active ? "Active" : "Deactivated"}</td>
-              <td style={{ padding: "6px 8px" }}><UserActions id={u.id} active={u.active} /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="fm-section-grid">
+        {users.map((u) => (
+          <div key={u.id} className="glass glass-sm glass-card fm-entity-card" style={{ cursor: "default" }}>
+            <div className="fm-entity-card-head">
+              <div>
+                <h3>{u.name}</h3>
+                <p className="fm-li-meta">{u.email}</p>
+              </div>
+              <span className={roleBadgeClass[u.role] ?? "fm-badge"}>{u.role}</span>
+            </div>
 
-      <h2 style={{ marginTop: 32, fontSize: "1.1rem" }}>Add a user</h2>
-      <NewUserForm clientOrgs={clientOrgs} />
+            <p className="fm-li-meta" style={{ margin: 0 }}>
+              {u.clientOrg?.name ? `${u.clientOrg.name} · ` : ""}
+              <span className={u.active ? "fm-badge fm-badge-good" : "fm-badge fm-badge-warn"}>
+                {u.active ? "Active" : "Deactivated"}
+              </span>
+            </p>
+
+            <UserActions id={u.id} active={u.active} />
+          </div>
+        ))}
+      </div>
+
+      <div className="glass glass-sm glass-card fm-section" style={{ marginTop: 24, maxWidth: 420 }}>
+        <h3>Add a user</h3>
+        <NewUserForm clientOrgs={clientOrgs} />
+      </div>
     </Shell>
   );
 }

@@ -16,46 +16,50 @@ export default async function LeadsPage() {
 
   const leads = await prisma.lead.findMany({ orderBy: { createdAt: "desc" } });
 
+  const statusBadgeClass: Record<string, string> = {
+    OPEN: "fm-badge",
+    QUALIFIED: "fm-badge fm-badge-gold",
+    CONVERTED: "fm-badge fm-badge-good",
+    LOST: "fm-badge fm-badge-warn",
+  };
+
   return (
     <Shell user={user}>
-      <h1>Leads</h1>
-      <p style={{ color: "#555" }}>
-        The sales pipeline, before a company becomes a client organization. Converting a lead creates its
-        client organization and first project in one step.
-      </p>
+      <div className="fm-page-head">
+        <h1>Leads</h1>
+        <p>
+          The sales pipeline, before a company becomes a client organization. Converting a lead creates its
+          client organization and first project in one step.
+        </p>
+      </div>
 
       {leads.length === 0 ? (
-        <p>No leads yet.</p>
+        <p className="fm-empty">No leads yet.</p>
       ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 16, fontSize: ".9rem" }}>
-          <thead>
-            <tr style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
-              <th style={{ padding: "6px 8px" }}>Company</th>
-              <th style={{ padding: "6px 8px" }}>Contact</th>
-              <th style={{ padding: "6px 8px" }}>Status</th>
-              <th style={{ padding: "6px 8px" }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {leads.map((l) => (
-              <tr key={l.id} style={{ borderBottom: "1px solid #eee" }}>
-                <td style={{ padding: "6px 8px" }}>{l.companyName}</td>
-                <td style={{ padding: "6px 8px" }}>
-                  {l.contactName}
-                  {l.email ? <span style={{ color: "#888" }}> · {l.email}</span> : null}
-                </td>
-                <td style={{ padding: "6px 8px" }}>{l.status}</td>
-                <td style={{ padding: "6px 8px" }}>
-                  <Link href={`/leads/${l.id}`}>Open →</Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="fm-section-grid">
+          {leads.map((l) => (
+            <Link key={l.id} href={`/leads/${l.id}`} className="glass glass-sm glass-card fm-entity-card">
+              <div className="fm-entity-card-head">
+                <div>
+                  <h3>{l.companyName}</h3>
+                  <p className="fm-li-meta">
+                    {l.contactName}
+                    {l.email ? ` · ${l.email}` : ""}
+                  </p>
+                </div>
+                <span className={statusBadgeClass[l.status] ?? "fm-badge"}>{l.status}</span>
+              </div>
+
+              <span className="fm-entity-card-cta">Open →</span>
+            </Link>
+          ))}
+        </div>
       )}
 
-      <h2 style={{ marginTop: 32, fontSize: "1.1rem" }}>Add a lead</h2>
-      <NewLeadForm />
+      <div className="glass glass-sm glass-card fm-section" style={{ marginTop: 24, maxWidth: 420 }}>
+        <h3>Add a lead</h3>
+        <NewLeadForm />
+      </div>
     </Shell>
   );
 }
