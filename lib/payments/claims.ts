@@ -1,6 +1,6 @@
 import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, InvoiceStatus } from "@prisma/client";
 import { ValidationError } from "@/lib/api/respond";
 
 type DbClient = typeof prisma | Prisma.TransactionClient;
@@ -35,8 +35,8 @@ export function deriveInvoiceStatusAfterPayment(
   existingPayments: { amount: string | Decimal }[],
   existingCreditNotes: { amount: string | Decimal }[],
   newPaymentAmount: string | Decimal,
-  currentStatus: string
-): string {
+  currentStatus: InvoiceStatus
+): InvoiceStatus {
   const totalPaid = existingPayments
     .reduce((sum, p) => sum.add(p.amount.toString()), new Decimal(0))
     .add(newPaymentAmount.toString());
