@@ -1266,6 +1266,82 @@ main {
   font-weight: 700;
 }
 
+/* 29 Oct 2026 (fourth pass): a breadcrumb trail above a page's h1 — "Dashboard
+   / <section>" — so there's a way back to Dashboard without the browser's
+   back button. Scoped per-page (not every page has one yet), starting with
+   Raw Materials per the user's reference mockup. */
+.fm-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--fm-text-muted);
+  margin-bottom: 10px;
+}
+
+.fm-breadcrumb a {
+  color: var(--fm-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.fm-breadcrumb a:hover {
+  color: var(--fm-text);
+}
+
+/* 29 Oct 2026 (fourth pass): a flatter, solid-fill card for dense tabular
+   data (the Raw Materials table) — per the user's reference mockup, this
+   is a plain near-white card rather than the frosted --card-fill gradient
+   every other .glass-card uses, so a long data table stays easy to scan
+   instead of fighting a gradient background. Deliberately its own class,
+   not a change to .glass-card, so it doesn't affect any other card. */
+.fm-table-card {
+  background: var(--fm-table-card-bg, #fffbf6);
+  border: 1px solid rgba(90, 70, 40, 0.12);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 4px 18px -10px rgba(36, 31, 26, 0.18);
+  padding: 22px 24px;
+}
+
+.fm-table-card h3 {
+  margin-bottom: 14px;
+  font-size: 1rem;
+}
+
+.fm-table-card table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.fm-table-card thead tr {
+  text-align: left;
+  border-bottom: 1px solid rgba(90, 70, 40, 0.18);
+}
+
+.fm-table-card th {
+  padding: 0 10px 10px;
+  font-size: 0.74rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--fm-text-muted);
+}
+
+.fm-table-card td {
+  padding: 14px 10px;
+  border-bottom: 1px solid rgba(90, 70, 40, 0.08);
+  vertical-align: top;
+}
+
+.fm-table-card tbody tr:last-child td {
+  border-bottom: none;
+}
+
+:root[data-theme="dark"] {
+  --fm-table-card-bg: rgba(40, 28, 18, 0.55);
+}
+
 .fm-li-meta {
   display: block;
   font-size: 0.78rem;

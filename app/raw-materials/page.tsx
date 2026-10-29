@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
@@ -61,6 +62,11 @@ export default async function RawMaterialsPage() {
 
   return (
     <Shell user={user}>
+      <nav className="fm-breadcrumb" aria-label="Breadcrumb">
+        <Link href="/dashboard">Dashboard</Link>
+        <span>/</span>
+        <span>Materials</span>
+      </nav>
       <div className="fm-page-head">
         <h1>Raw Materials</h1>
         <p>
@@ -99,90 +105,79 @@ export default async function RawMaterialsPage() {
         ) : null}
       </div>
 
-      <div className="glass glass-sm glass-card fm-section">
+      <div className="fm-table-card">
         <h3>Raw materials</h3>
         {rawMaterials.length === 0 ? (
           <p className="fm-empty">No raw materials yet.</p>
         ) : (
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: ".88rem" }}>
-            <thead>
-              <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
-                <th style={{ padding: "6px 8px" }}>Name</th>
-                <th style={{ padding: "6px 8px" }}>Supplier</th>
-                <th style={{ padding: "6px 8px" }}>Unit</th>
-                <th style={{ padding: "6px 8px" }}>Price per unit</th>
-                <th style={{ padding: "6px 8px" }}>Stock on hand</th>
-                <th style={{ padding: "6px 8px" }}>COA images</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rawMaterials.map((m) => {
-                const isLow = m.reorderThreshold != null && Number(m.stockOnHand) <= Number(m.reorderThreshold);
-                return (
-                <tr key={m.id} style={{ borderBottom: "1px solid #eee", verticalAlign: "top" }}>
-                  <td style={{ padding: "8px" }}>{m.name}</td>
-                  <td style={{ padding: "8px" }}>{m.supplier?.name ?? "—"}</td>
-                  <td style={{ padding: "8px" }}>{m.defaultUnit}</td>
-                  <td style={{ padding: "8px" }}>{m.defaultCostPerUnit ? m.defaultCostPerUnit.toString() : "—"}</td>
-                  <td style={{ padding: "8px" }}>
-                    <span>
-                      {m.stockOnHand.toString()} {m.defaultUnit}
-                    </span>
-                    {isLow ? (
-                      <span
-                        style={{
-                          marginLeft: 6,
-                          display: "inline-block",
-                          padding: "1px 7px",
-                          borderRadius: 999,
-                          background: "#fbe9e6",
-                          color: "#b00020",
-                          fontWeight: 600,
-                          fontSize: ".74rem",
-                        }}
-                      >
-                        Low stock
-                      </span>
-                    ) : null}
-                    {m.reorderThreshold != null ? (
-                      <div style={{ color: "#777", fontSize: ".78rem" }}>
-                        warn below {m.reorderThreshold.toString()}
-                      </div>
-                    ) : null}
-                    {canManage ? (
-                      <>
-                        <StockMovementForm rawMaterialId={m.id} />
-                        <SetStockForm rawMaterialId={m.id} currentStock={m.stockOnHand.toString()} />
-                      </>
-                    ) : null}
-                  </td>
-                  <td style={{ padding: "8px" }}>
-                    {m.attachments.length === 0 ? (
-                      <span style={{ color: "#777" }}>None yet</span>
-                    ) : (
-                      <ul style={{ margin: 0, paddingLeft: 16 }}>
-                        {m.attachments.map((a) => (
-                          <li key={a.id}>
-                            <a href={`/api/raw-material-attachments/${a.id}/download`}>{a.fileName}</a>
-                            <span style={{ color: "#777", fontSize: ".78rem" }}>
-                              {" · "}{a.uploadedBy.name} · {new Date(a.uploadedAt).toLocaleDateString()}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    {canManage ? <CoaUploadForm rawMaterialId={m.id} /> : null}
-                  </td>
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Supplier</th>
+                  <th>Unit</th>
+                  <th>Price per unit</th>
+                  <th>Stock on hand</th>
+                  <th>COA images</th>
                 </tr>
-                );
-              })}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rawMaterials.map((m) => {
+                  const isLow = m.reorderThreshold != null && Number(m.stockOnHand) <= Number(m.reorderThreshold);
+                  return (
+                    <tr key={m.id}>
+                      <td>{m.name}</td>
+                      <td>{m.supplier?.name ?? "—"}</td>
+                      <td>{m.defaultUnit}</td>
+                      <td>{m.defaultCostPerUnit ? `₹${m.defaultCostPerUnit.toString()}` : "—"}</td>
+                      <td>
+                        <div>
+                          <strong>
+                            {m.stockOnHand.toString()} {m.defaultUnit}
+                          </strong>
+                          {isLow ? (
+                            <span className="fm-badge fm-badge-warn" style={{ marginLeft: 8 }}>
+                              Low stock
+                            </span>
+                          ) : null}
+                        </div>
+                        {m.reorderThreshold != null ? (
+                          <div className="fm-li-meta">warns below {m.reorderThreshold.toString()} {m.defaultUnit}</div>
+                        ) : null}
+                        {canManage ? (
+                          <div style={{ marginTop: 6 }}>
+                            <StockMovementForm rawMaterialId={m.id} />
+                            <SetStockForm rawMaterialId={m.id} currentStock={m.stockOnHand.toString()} />
+                          </div>
+                        ) : null}
+                      </td>
+                      <td>
+                        {m.attachments.length === 0 ? (
+                          <span className="fm-li-meta">None yet</span>
+                        ) : (
+                          <ul style={{ margin: 0, paddingLeft: 16 }}>
+                            {m.attachments.map((a) => (
+                              <li key={a.id}>
+                                <a href={`/api/raw-material-attachments/${a.id}/download`}>{a.fileName}</a>
+                                <span className="fm-li-meta" style={{ display: "inline" }}>
+                                  {" · "}{a.uploadedBy.name} · {new Date(a.uploadedAt).toLocaleDateString()}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {canManage ? <CoaUploadForm rawMaterialId={m.id} /> : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
         {canManage ? (
-          <div style={{ marginTop: 10 }}>
+          <div style={{ marginTop: 14 }}>
             <NewRawMaterialForm suppliers={suppliers.map((s) => ({ id: s.id, name: s.name }))} />
           </div>
         ) : null}
