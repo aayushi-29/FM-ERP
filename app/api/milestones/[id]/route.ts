@@ -5,6 +5,7 @@ import { requireRole, assertProjectAccess, ForbiddenError } from "@/lib/auth/rba
 import { logAudit } from "@/lib/audit";
 import { logProjectActivity } from "@/lib/projects/activity";
 import { assertDueDateWithinProject } from "@/lib/projects/due-date";
+import { assertExecutionUnlocked } from "@/lib/projects/execution-gate";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse } from "@/lib/api/respond";
 
@@ -47,6 +48,15 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     if (!milestone) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     await assertProjectAccess(actor, milestone.projectId);
+    // 29 Oct 2026 (third pass): confirmed with the user — no milestone
+    // edit (Project Lead editing/submitting, Client approving/rejecting,
+    // or Admin's override) until the 60% advance is verified. Applied
+    // uniformly across all three branches below rather than per-role,
+    // since in practice a SUBMITTED milestone can't exist pre-advance
+    // anyway once creation is gated (see the milestones POST route) — this
+    // just keeps every path consistent and defends against edge cases
+    // (e.g. a milestone created before the gate existed).
+    await assertExecutionUnlocked(milestone.projectId);
 
     const json = await request.json().catch(() => null);
 

@@ -13,9 +13,17 @@ type Milestone = {
 export function MilestoneList({
   milestones,
   role,
+  executionUnlocked = true,
 }: {
   milestones: Milestone[];
   role: "ADMIN" | "PROJECT_LEAD" | "NPD_EXECUTIVE" | "CLIENT";
+  // 29 Oct 2026 (third pass): milestones now join execution-gate.ts's
+  // lock, so a Project Lead can't request approval and a Client can't
+  // decide one until the 60% advance is verified — the server enforces
+  // this (app/api/milestones/[id]/route.ts), this just keeps the buttons
+  // from being shown only to fail. Defaults true so existing callers that
+  // don't pass it (none currently) aren't silently broken.
+  executionUnlocked?: boolean;
 }) {
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -58,13 +66,13 @@ export function MilestoneList({
               </span>
             </span>
 
-            {role === "PROJECT_LEAD" && m.status === "PENDING" ? (
+            {role === "PROJECT_LEAD" && m.status === "PENDING" && executionUnlocked ? (
               <button disabled={pendingId === m.id} onClick={() => patch(m.id, { requestApproval: true })}>
                 Request approval
               </button>
             ) : null}
 
-            {role === "CLIENT" && m.status === "SUBMITTED" ? (
+            {role === "CLIENT" && m.status === "SUBMITTED" && executionUnlocked ? (
               <>
                 <button disabled={pendingId === m.id} onClick={() => patch(m.id, { decision: "APPROVED" })}>
                   Approve

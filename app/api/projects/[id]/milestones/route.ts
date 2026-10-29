@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, assertProjectAccess } from "@/lib/auth/rbac";
 import { logProjectActivity } from "@/lib/projects/activity";
 import { assertDueDateWithinProject } from "@/lib/projects/due-date";
+import { assertExecutionUnlocked } from "@/lib/projects/execution-gate";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse } from "@/lib/api/respond";
 
@@ -41,6 +42,13 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     const actor = await requireRole(["ADMIN", "PROJECT_LEAD"]);
     await assertProjectAccess(actor, params.id);
+    // 29 Oct 2026 (third pass): confirmed with the user — milestones now
+    // join tasks/trials/products/formulations on execution-gate.ts's lock,
+    // so Admin can't raise a milestone (and nothing downstream of it) on a
+    // project whose 60% advance isn't verified yet. Still never touches
+    // leads, clients, documents, or invoices — same narrow scope the gate
+    // already documents.
+    await assertExecutionUnlocked(params.id);
 
     const json = await request.json().catch(() => null);
     const input = createMilestoneSchema.parse(json);

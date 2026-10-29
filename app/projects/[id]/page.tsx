@@ -125,6 +125,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
                 dueDate: m.dueDate ? m.dueDate.toISOString() : null,
               }))}
               role="CLIENT"
+              executionUnlocked={!!project.advancePaymentVerifiedAt}
             />
           </div>
 
@@ -206,8 +207,8 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
 
       {!project.advancePaymentVerifiedAt ? (
         <div className="fm-advance-banner" role="status">
-          Locked: the 60% advance payment hasn&apos;t been verified yet, so tasks and trials
-          can&apos;t be created on this project.
+          Locked: the 60% advance payment hasn&apos;t been verified yet, so tasks, trials, and
+          milestones can&apos;t be created or edited on this project.
           {user.role === "ADMIN" ? (
             <>
               {" "}
@@ -254,8 +255,9 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           dueDate: m.dueDate ? m.dueDate.toISOString() : null,
         }))}
         role={user.role}
+        executionUnlocked={!!project.advancePaymentVerifiedAt}
       />
-      {canManage ? (
+      {canManage && project.advancePaymentVerifiedAt ? (
         <div style={{ marginTop: 10 }}>
           <NewMilestoneForm
             projectId={project.id}
