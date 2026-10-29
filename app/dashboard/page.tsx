@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { requireUserOrRedirect } from "@/lib/auth/rbac";
 import type { SessionUser } from "@/lib/auth/session";
 import {
@@ -28,6 +29,15 @@ function timeOfDayGreeting(): string {
   if (hour < 21) return "Good evening";
   return "Working late";
 }
+
+export const metadata: Metadata = { title: "Dashboard" };
+
+// Defensive guard, not a fix for a confirmed bug: requireUserOrRedirect()
+// already calls cookies() (via getCurrentUser), which on its own forces
+// Next.js to render this route dynamically per-request rather than caching
+// a static shell — so stale counts are not a caching bug. This just makes
+// that explicit so it's never in question again.
+export const dynamic = "force-dynamic";
 
 const ROLE_WELCOME: Record<SessionUser["role"], string> = {
   ADMIN: "Here's what needs attention across every project today.",

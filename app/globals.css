@@ -724,6 +724,25 @@ main {
   transform: scaleX(1);
 }
 
+/* Active section — a solid pill, not just the hover underline, so it
+   reads at a glance which page you're on. The rest stay muted. */
+.fm-shell-links a[aria-current="page"] {
+  background: var(--fm-olive);
+  color: var(--fm-paper, #fff) !important;
+}
+
+.fm-shell-links a[aria-current="page"]::after {
+  display: none;
+}
+
+.fm-shell-links a:not([aria-current="page"]) {
+  opacity: 0.72;
+}
+
+.fm-shell-links a:not([aria-current="page"]):hover {
+  opacity: 1;
+}
+
 .fm-shell-user {
   display: flex;
   align-items: center;

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { CLIENT_SAFE_PROJECT_SELECT } from "@/lib/projects/scope";
@@ -10,6 +11,11 @@ import { NewMilestoneForm } from "./new-milestone-form";
 import { AssignForm } from "./assign-form";
 import { HandoverControl } from "./handover-control";
 import { Shell } from "@/app/components/shell";
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const project = await prisma.project.findUnique({ where: { id: params.id }, select: { name: true } });
+  return { title: project?.name ?? "Project" };
+}
 
 export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();

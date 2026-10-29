@@ -1,7 +1,10 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { Shell } from "@/app/components/shell";
+
+export const metadata: Metadata = { title: "Audit Log" };
 
 const PAGE_SIZE = 50;
 

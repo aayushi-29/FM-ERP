@@ -1,8 +1,17 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { getProjectIdForFormulationVersion, CLIENT_SAFE_VERSION_SELECT } from "@/lib/npd/scope";
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const version = await prisma.formulationVersion.findUnique({
+    where: { id: params.id },
+    select: { versionNumber: true, formulation: { select: { name: true } } },
+  });
+  return { title: version ? `v${version.versionNumber} — ${version.formulation.name}` : "Formulation Version" };
+}
 import { isExecutionUnlocked } from "@/lib/projects/execution-gate";
 import { canReadInventory } from "@/lib/inventory/scope";
 import { IngredientLines } from "./ingredient-lines";

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { canManageInventory } from "@/lib/inventory/scope";
@@ -8,19 +9,19 @@ import { StockMovementForm } from "./stock-movement-form";
 import { SetStockForm } from "./set-stock-form";
 import { Shell } from "@/app/components/shell";
 
+export const metadata: Metadata = { title: "Raw Materials" };
+
 // "Add inventory management/supplier details of the raw materials used" —
 // the catalog view of Supplier/RawMaterial. 29 Oct 2026: now also shows
 // stock-on-hand and a low-stock flag — confirmed with the user to
 // explicitly supersede Decision #7's "no stock ledger" (docs/decisions.md).
 //
-// 29 Oct 2026 (third pass): renamed to "Raw Materials" and reordered to the
-// requested Name | Supplier | Quantity | Unit | Price per unit | Stock on
-// hand | COA images layout. The schema has no separate "quantity" field
-// from "Stock on hand" (RawMaterial.stockOnHand is the only running total —
-// see prisma/schema.prisma) — both columns below read the same
-// stockOnHand value: "Quantity" shows the plain number, "Stock on hand"
-// repeats it with the low-stock badge/threshold. Flagged to the user as an
-// interpretation, not confirmed as two distinct fields.
+// 29 Oct 2026 (third pass): renamed to "Raw Materials". The earlier pass
+// added a separate "Quantity" column, but it read the exact same
+// RawMaterial.stockOnHand value as "Stock on hand" — there's no distinct
+// quantity field in the schema (prisma/schema.prisma) — so that duplicate
+// column was removed. "Stock on hand" (with its low-stock badge and
+// "warns below N" threshold note) is now the single number, same as before.
 export default async function RawMaterialsPage() {
   const user = await requireRoleOrRedirect(["ADMIN", "PROJECT_LEAD", "NPD_EXECUTIVE"]);
   const canManage = canManageInventory(user.role);
@@ -104,7 +105,6 @@ export default async function RawMaterialsPage() {
               <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
                 <th style={{ padding: "6px 8px" }}>Name</th>
                 <th style={{ padding: "6px 8px" }}>Supplier</th>
-                <th style={{ padding: "6px 8px" }}>Quantity</th>
                 <th style={{ padding: "6px 8px" }}>Unit</th>
                 <th style={{ padding: "6px 8px" }}>Price per unit</th>
                 <th style={{ padding: "6px 8px" }}>Stock on hand</th>
@@ -118,7 +118,6 @@ export default async function RawMaterialsPage() {
                 <tr key={m.id} style={{ borderBottom: "1px solid #eee", verticalAlign: "top" }}>
                   <td style={{ padding: "8px" }}>{m.name}</td>
                   <td style={{ padding: "8px" }}>{m.supplier?.name ?? "—"}</td>
-                  <td style={{ padding: "8px" }}>{m.stockOnHand.toString()}</td>
                   <td style={{ padding: "8px" }}>{m.defaultUnit}</td>
                   <td style={{ padding: "8px" }}>{m.defaultCostPerUnit ? m.defaultCostPerUnit.toString() : "—"}</td>
                   <td style={{ padding: "8px" }}>

@@ -1,9 +1,12 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { getVisibleClientOrgIds } from "@/lib/crm/scope";
 import { NewClientForm } from "./new-client-form";
 import { Shell } from "@/app/components/shell";
+
+export const metadata: Metadata = { title: "Clients" };
 
 // Admin: full access. Project Lead: only orgs they're assigned to via a
 // project (see lib/crm/scope.ts). Internal tooling, not the final themed UI.

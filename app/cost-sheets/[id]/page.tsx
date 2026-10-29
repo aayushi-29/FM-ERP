@@ -1,10 +1,23 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { canReadCosting, canManageCosting } from "@/lib/costing/scope";
 import { MrpForm } from "./mrp-form";
 import { Shell } from "@/app/components/shell";
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const costSheet = await prisma.costSheet.findUnique({
+    where: { id: params.id },
+    select: { formulationVersion: { select: { versionNumber: true, formulation: { select: { name: true } } } } },
+  });
+  return {
+    title: costSheet
+      ? `${costSheet.formulationVersion.formulation.name} v${costSheet.formulationVersion.versionNumber}`
+      : "Cost Sheet",
+  };
+}
 
 export default async function CostSheetDetailPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();

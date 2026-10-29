@@ -1,11 +1,17 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { LeadStatusActions } from "./lead-status-actions";
 import { ConvertLeadForm } from "./convert-lead-form";
 import { ProposalSection } from "./proposal-section";
 import { Shell } from "@/app/components/shell";
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const lead = await prisma.lead.findUnique({ where: { id: params.id }, select: { companyName: true } });
+  return { title: lead?.companyName ?? "Lead" };
+}
 
 export default async function LeadDetailPage({ params }: { params: { id: string } }) {
   const user = await requireRoleOrRedirect(["ADMIN", "PROJECT_LEAD"]);

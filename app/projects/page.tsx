@@ -1,8 +1,11 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { requireUserOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { getVisibleProjectIds, CLIENT_SAFE_PROJECT_SELECT } from "@/lib/projects/scope";
 import { Shell } from "@/app/components/shell";
+
+export const metadata: Metadata = { title: "Projects" };
 
 export default async function ProjectsPage() {
   const user = await requireUserOrRedirect();

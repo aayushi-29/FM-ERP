@@ -6,6 +6,12 @@ import { prisma } from "@/lib/prisma";
 import { isExecutionUnlocked } from "@/lib/projects/execution-gate";
 import { NewProductForm } from "./new-product-form";
 import { Shell } from "@/app/components/shell";
+import type { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const project = await prisma.project.findUnique({ where: { id: params.id }, select: { name: true } });
+  return { title: project ? `Products — ${project.name}` : "Products" };
+}
 
 // Client is excluded from this page entirely (baseline §4: Products/
 // Formulations have no Client row at all — their only NPD visibility is a

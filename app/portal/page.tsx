@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { requireUserOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { Shell } from "@/app/components/shell";
+
+export const metadata: Metadata = { title: "Client Portal" };
 
 // 29 Oct 2026: dedicated Client Portal page — confirmed with the user.
 // Baseline §11 describes the Client's own view as "own project status,

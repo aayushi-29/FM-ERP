@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { NewUserForm } from "./new-user-form";
 import { UserActions } from "./user-actions";
 import { Shell } from "@/app/components/shell";
+
+export const metadata: Metadata = { title: "Users" };
 
 // Internal tooling, not the themed role dashboard promised for step 5 of
 // the build order — functional, unstyled-on-purpose, so it doesn't get

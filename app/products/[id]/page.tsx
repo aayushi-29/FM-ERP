@@ -5,6 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { isExecutionUnlocked } from "@/lib/projects/execution-gate";
 import { NewFormulationForm } from "./new-formulation-form";
 import { Shell } from "@/app/components/shell";
+import type { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const product = await prisma.product.findUnique({ where: { id: params.id }, select: { name: true } });
+  return { title: product?.name ?? "Product" };
+}
 
 export default async function ProductDetailPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();

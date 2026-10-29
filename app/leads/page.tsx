@@ -1,8 +1,11 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { NewLeadForm } from "./new-lead-form";
 import { Shell } from "@/app/components/shell";
+
+export const metadata: Metadata = { title: "Leads" };
 
 // Admin + Project Lead, both full access to the whole pipeline — see the
 // interpretation flag in app/api/leads/route.ts for why there's no

@@ -1,10 +1,18 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { assertClientOrgAccessOrRedirect } from "@/lib/crm/scope";
 import { NewContactForm } from "./new-contact-form";
 import { Shell } from "@/app/components/shell";
+
+// Display-only lookup for the browser tab title — not an access check
+// (the page body below still enforces that via assertClientOrgAccessOrRedirect).
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const client = await prisma.clientOrganization.findUnique({ where: { id: params.id }, select: { name: true } });
+  return { title: client?.name ?? "Client" };
+}
 
 export default async function ClientDetailPage({ params }: { params: { id: string } }) {
   const user = await requireRoleOrRedirect(["ADMIN", "PROJECT_LEAD"]);
@@ -14,7 +22,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
     where: { id: params.id },
     include: {
       contacts: { orderBy: [{ isPrimary: "desc" }, { name: "asc" }] },
-      projects: { select: { id: true, name: true, status: true } },
+      projects: { select: { id: true, name: true, status: true, targetDate: true } },
     },
   });
 
@@ -39,14 +47,19 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
           {client.projects.length === 0 ? (
             <p className="fm-empty">None yet.</p>
           ) : (
-            <ul>
+            <div className="fm-stat-row">
               {client.projects.map((p) => (
-                <li key={p.id}>
-                  <Link href={`/projects/${p.id}`}>{p.name}</Link>{" "}
-                  <span className={statusBadgeClass[p.status] ?? "fm-badge"}>{p.status}</span>
-                </li>
+                <Link key={p.id} href={`/projects/${p.id}`} className="glass glass-sm fm-stat" style={{ textDecoration: "none", color: "inherit" }}>
+                  <div className="fm-stat-value" style={{ fontSize: "1rem" }}>
+                    {p.name}
+                  </div>
+                  <div className="fm-stat-label">
+                    <span className={statusBadgeClass[p.status] ?? "fm-badge"}>{p.status}</span>
+                    {p.targetDate ? ` · target ${new Date(p.targetDate).toLocaleDateString()}` : ""}
+                  </div>
+                </Link>
               ))}
-            </ul>
+            </div>
           )}
         </div>
 

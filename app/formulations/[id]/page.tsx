@@ -1,8 +1,14 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { Shell } from "@/app/components/shell";
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const formulation = await prisma.formulation.findUnique({ where: { id: params.id }, select: { name: true } });
+  return { title: formulation?.name ?? "Formulation" };
+}
 
 export default async function FormulationDetailPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();

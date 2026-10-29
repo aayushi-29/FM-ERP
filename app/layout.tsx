@@ -5,7 +5,14 @@ import { GlassCursorEffect } from "./components/glass-cursor-effect";
 import { CommandPalette } from "./components/command-palette";
 
 export const metadata: Metadata = {
-  title: "Food Monk ERP",
+  title: {
+    default: "Food Monk ERP",
+    // Every route below sets its own short `title` (or computes one via
+    // generateMetadata for a record's name) — this template is what turns
+    // that into a distinct browser-tab title instead of every page reading
+    // the same "Food Monk ERP".
+    template: "%s · Food Monk ERP",
+  },
   description: "Client, project, and NPD workflow management for Food Monk Innovations",
   icons: { icon: "/logo.png" },
 };

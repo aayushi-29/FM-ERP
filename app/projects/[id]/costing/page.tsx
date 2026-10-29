@@ -8,6 +8,12 @@ import { NewCostSheetForm } from "./new-cost-sheet-form";
 import { NewExpenseForm } from "./new-expense-form";
 import { NewInvoiceForm } from "./new-invoice-form";
 import { Shell } from "@/app/components/shell";
+import type { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const project = await prisma.project.findUnique({ where: { id: params.id }, select: { name: true } });
+  return { title: project ? `Costing — ${project.name}` : "Costing & Invoicing" };
+}
 
 export default async function CostingPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();

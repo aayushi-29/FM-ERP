@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { NewProjectForm } from "./new-project-form";
 import { Shell } from "@/app/components/shell";
+
+export const metadata: Metadata = { title: "New Project" };
 
 export default async function NewProjectPage() {
   const user = await requireRoleOrRedirect(["ADMIN"]);

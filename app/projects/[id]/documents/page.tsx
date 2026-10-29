@@ -6,6 +6,12 @@ import { canUploadType, canManageVisibility } from "@/lib/documents/scope";
 import { UploadDocumentForm } from "./upload-document-form";
 import { DocumentRow } from "./document-row";
 import { Shell } from "@/app/components/shell";
+import type { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const project = await prisma.project.findUnique({ where: { id: params.id }, select: { name: true } });
+  return { title: project ? `Documents — ${project.name}` : "Documents" };
+}
 
 export default async function DocumentsPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();

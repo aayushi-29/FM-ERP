@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { SessionUser } from "@/lib/auth/session";
 import { SignOutButton } from "@/app/dashboard/sign-out-button";
 import { NotificationBell } from "./notification-bell";
+import { NavLinks } from "./nav-links";
 
 const ROLE_LABEL: Record<SessionUser["role"], string> = {
   ADMIN: "Admin",
@@ -47,13 +48,7 @@ export function Shell({ user, children }: { user: SessionUser; children: ReactNo
             <span>Food Monk ERP</span>
           </Link>
 
-          <nav className="fm-shell-links" aria-label="Primary">
-            {links.map((l) => (
-              <Link key={l.href} href={l.href}>
-                {l.label}
-              </Link>
-            ))}
-          </nav>
+          <NavLinks links={links} />
 
           <div className="fm-shell-user">
             <NotificationBell />

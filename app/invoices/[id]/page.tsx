@@ -1,8 +1,14 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { canReadInvoices, canManageInvoices, isInvoiceVisibleToClient } from "@/lib/costing/scope";
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const invoice = await prisma.invoice.findUnique({ where: { id: params.id }, select: { invoiceNumber: true } });
+  return { title: invoice?.invoiceNumber ?? "Invoice" };
+}
 import { InvoiceActions } from "./invoice-actions";
 import { ClaimPaymentForm } from "./claim-payment-form";
 import { PendingClaimActions } from "./pending-claim-actions";

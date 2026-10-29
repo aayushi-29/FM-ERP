@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { getCurrentUser } from "@/lib/auth/session";
 import { Shell } from "@/app/components/shell";
+
+export const metadata: Metadata = { title: "Access Denied" };
 
 // No requireUserOrRedirect() here on purpose — a signed-in user who got
 // bounced here for lacking a role/record-level permission still needs a
