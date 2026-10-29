@@ -48,4 +48,8 @@ export const CLIENT_SAFE_PROJECT_SELECT = {
   // verified" banner as the internal view — a timestamp, not a sensitive
   // financial figure, so it's safe in the client-safe select.
   advancePaymentVerifiedAt: true,
+  // 29 Oct 2026 (third pass): counts only, for the entity-card stat row on
+  // the Projects list — no task/milestone content, just how many, which
+  // isn't internal planning detail.
+  _count: { select: { tasks: true, milestones: true } },
 } as const;

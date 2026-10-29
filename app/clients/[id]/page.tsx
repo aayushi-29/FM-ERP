@@ -22,7 +22,16 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
     where: { id: params.id },
     include: {
       contacts: { orderBy: [{ isPrimary: "desc" }, { name: "asc" }] },
-      projects: { select: { id: true, name: true, status: true, targetDate: true } },
+      projects: {
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          targetDate: true,
+          // 29 Oct 2026 (third pass): counts for the entity-card stat row.
+          _count: { select: { tasks: true, milestones: true } },
+        },
+      },
     },
   });
 
@@ -47,16 +56,32 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
           {client.projects.length === 0 ? (
             <p className="fm-empty">None yet.</p>
           ) : (
-            <div className="fm-stat-row">
+            <div className="fm-section-grid">
               {client.projects.map((p) => (
-                <Link key={p.id} href={`/projects/${p.id}`} className="glass glass-sm fm-stat" style={{ textDecoration: "none", color: "inherit" }}>
-                  <div className="fm-stat-value" style={{ fontSize: "1rem" }}>
-                    {p.name}
-                  </div>
-                  <div className="fm-stat-label">
+                <Link key={p.id} href={`/projects/${p.id}`} className="glass glass-sm glass-card fm-entity-card">
+                  <div className="fm-entity-card-head">
+                    <h3>{p.name}</h3>
                     <span className={statusBadgeClass[p.status] ?? "fm-badge"}>{p.status}</span>
-                    {p.targetDate ? ` · target ${new Date(p.targetDate).toLocaleDateString()}` : ""}
                   </div>
+
+                  <div className="fm-entity-card-stats">
+                    <div className="fm-entity-card-stat">
+                      <span className="fm-entity-card-stat-value">{p._count.tasks}</span>
+                      <span className="fm-entity-card-stat-label">Tasks</span>
+                    </div>
+                    <div className="fm-entity-card-stat">
+                      <span className="fm-entity-card-stat-value">{p._count.milestones}</span>
+                      <span className="fm-entity-card-stat-label">Milestones</span>
+                    </div>
+                    <div className="fm-entity-card-stat">
+                      <span className="fm-entity-card-stat-value">
+                        {p.targetDate ? new Date(p.targetDate).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—"}
+                      </span>
+                      <span className="fm-entity-card-stat-label">Target</span>
+                    </div>
+                  </div>
+
+                  <span className="fm-entity-card-cta">View project →</span>
                 </Link>
               ))}
             </div>
