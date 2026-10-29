@@ -4,6 +4,8 @@ import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth
 import { prisma } from "@/lib/prisma";
 import { canReadInvoices, canManageInvoices, isInvoiceVisibleToClient } from "@/lib/costing/scope";
 import { InvoiceActions } from "./invoice-actions";
+import { ClaimPaymentForm } from "./claim-payment-form";
+import { PendingClaimActions } from "./pending-claim-actions";
 
 export default async function InvoiceDetailPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();
@@ -16,6 +18,7 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
       payments: { orderBy: { receivedAt: "desc" } },
       creditNotes: { orderBy: { issuedAt: "desc" } },
       createdBy: { select: { name: true } },
+      paymentClaims: { orderBy: { submittedAt: "desc" } },
     },
   });
   if (!invoice) notFound();
@@ -96,6 +99,45 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
             {invoice.creditNotes.map((c) => (
               <li key={c.id} style={{ padding: "6px 0", borderBottom: "1px solid #eee", fontSize: ".9rem" }}>
                 {c.amount.toString()} {invoice.currency} — {c.reason}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+
+      {/* 29 Oct 2026 (second pass): Client payment claims — a claim never
+          changes this invoice's status or creates a Payment by itself (see
+          docs/decisions.md); only Admin's acknowledge/reject below does. */}
+      {user.role === "CLIENT" && invoice.status !== "PAID" && invoice.status !== "CANCELLED" ? (
+        <ClaimPaymentForm invoiceId={invoice.id} />
+      ) : null}
+
+      {invoice.paymentClaims.length > 0 ? (
+        <>
+          <h2 style={{ fontSize: "1.05rem", marginTop: 20 }}>
+            {user.role === "CLIENT" ? "Your payment claims" : "Payment claims"}
+          </h2>
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {invoice.paymentClaims.map((c: (typeof invoice.paymentClaims)[number]) => (
+              <li key={c.id} style={{ padding: "6px 0", borderBottom: "1px solid #eee", fontSize: ".9rem" }}>
+                {c.amount.toString()} {invoice.currency} · {c.paymentMode} · ref {c.acknowledgementOrInvoiceNumber}
+                <span style={{ color: "#777" }}>
+                  {" · "}
+                  {new Date(c.submittedAt).toLocaleDateString()} ·{" "}
+                  <strong
+                    style={{
+                      color: c.status === "ACKNOWLEDGED" ? "#2a7a2a" : c.status === "REJECTED" ? "#b00020" : "#777",
+                    }}
+                  >
+                    {c.status}
+                  </strong>
+                </span>
+                {c.status === "REJECTED" && c.adminNote ? (
+                  <div style={{ color: "#b00020", fontSize: ".85rem" }}>Reason: {c.adminNote}</div>
+                ) : null}
+                {canManageInvoices(user.role) && c.status === "PENDING" ? (
+                  <PendingClaimActions claimId={c.id} />
+                ) : null}
               </li>
             ))}
           </ul>

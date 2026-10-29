@@ -2,16 +2,22 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { RAW_MATERIAL_UNITS } from "@/lib/inventory/units";
 
 type Supplier = { id: string; name: string };
 
+// 29 Oct 2026 (second pass): "Unit" is now a fixed dropdown and the cost/
+// threshold fields are proper numeric inputs instead of free text — same
+// treatment described in docs/decisions.md for this whole page, since it's
+// used by non-technical staff and free-text units were drifting ("Kg" vs
+// "kg" vs "kgs").
 export function NewRawMaterialForm({ suppliers }: { suppliers: Supplier[] }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [supplierId, setSupplierId] = useState("");
-  const [defaultUnit, setDefaultUnit] = useState("");
+  const [defaultUnit, setDefaultUnit] = useState<string>(RAW_MATERIAL_UNITS[0]);
   const [defaultCostPerUnit, setDefaultCostPerUnit] = useState("");
-  const [reorderThreshold, setReorderThreshold] = useState("");
+  const [lowStockThreshold, setLowStockThreshold] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -28,7 +34,7 @@ export function NewRawMaterialForm({ suppliers }: { suppliers: Supplier[] }) {
           supplierId: supplierId || undefined,
           defaultUnit,
           defaultCostPerUnit: defaultCostPerUnit || undefined,
-          reorderThreshold: reorderThreshold || undefined,
+          reorderThreshold: lowStockThreshold || undefined,
         }),
       });
       if (!res.ok) {
@@ -38,9 +44,9 @@ export function NewRawMaterialForm({ suppliers }: { suppliers: Supplier[] }) {
       }
       setName("");
       setSupplierId("");
-      setDefaultUnit("");
+      setDefaultUnit(RAW_MATERIAL_UNITS[0]);
       setDefaultCostPerUnit("");
-      setReorderThreshold("");
+      setLowStockThreshold("");
       router.refresh();
     } catch {
       setError("Could not reach the server.");
@@ -50,7 +56,7 @@ export function NewRawMaterialForm({ suppliers }: { suppliers: Supplier[] }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", gap: 8, maxWidth: 600, flexWrap: "wrap", alignItems: "flex-end" }}>
+    <form onSubmit={handleSubmit} style={{ display: "flex", gap: 8, maxWidth: 650, flexWrap: "wrap", alignItems: "flex-end" }}>
       <label style={{ flex: 1, minWidth: 160 }}>
         Material name
         <input value={name} onChange={(e) => setName(e.target.value)} required style={{ display: "block", width: "100%", padding: 6 }} />
@@ -64,17 +70,37 @@ export function NewRawMaterialForm({ suppliers }: { suppliers: Supplier[] }) {
           ))}
         </select>
       </label>
-      <label style={{ width: 100 }}>
+      <label style={{ width: 90 }}>
         Unit
-        <input value={defaultUnit} onChange={(e) => setDefaultUnit(e.target.value)} placeholder="kg" required style={{ display: "block", width: "100%", padding: 6 }} />
-      </label>
-      <label style={{ width: 140 }}>
-        Ref. cost/unit (optional)
-        <input value={defaultCostPerUnit} onChange={(e) => setDefaultCostPerUnit(e.target.value)} placeholder="e.g. 120.50" style={{ display: "block", width: "100%", padding: 6 }} />
+        <select value={defaultUnit} onChange={(e) => setDefaultUnit(e.target.value)} style={{ display: "block", width: "100%", padding: 6 }}>
+          {RAW_MATERIAL_UNITS.map((u) => (
+            <option key={u} value={u}>{u}</option>
+          ))}
+        </select>
       </label>
       <label style={{ width: 150 }}>
-        Reorder threshold (optional)
-        <input value={reorderThreshold} onChange={(e) => setReorderThreshold(e.target.value)} placeholder="e.g. 10" style={{ display: "block", width: "100%", padding: 6 }} />
+        Price per unit (optional)
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          value={defaultCostPerUnit}
+          onChange={(e) => setDefaultCostPerUnit(e.target.value)}
+          placeholder="e.g. 120.50"
+          style={{ display: "block", width: "100%", padding: 6 }}
+        />
+      </label>
+      <label style={{ width: 160 }}>
+        Low stock warning at (optional)
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          value={lowStockThreshold}
+          onChange={(e) => setLowStockThreshold(e.target.value)}
+          placeholder="e.g. 10"
+          style={{ display: "block", width: "100%", padding: 6 }}
+        />
       </label>
       <button type="submit" disabled={submitting}>{submitting ? "Adding…" : "Add material"}</button>
       {error ? <p role="alert" style={{ color: "#b00020", fontSize: ".85rem", width: "100%" }}>{error}</p> : null}

@@ -47,4 +47,15 @@ describe("costing authorization matrix", () => {
     expect(isInvoiceVisibleToClient("PAID")).toBe(true);
     expect(isInvoiceVisibleToClient("CANCELLED")).toBe(true);
   });
+
+  // "Changed - Working Logic" branch, 29 Oct 2026 (second pass), item #3:
+  // MRP visibility was explicitly required NOT to touch canReadCosting —
+  // the client-facing MRP number is read through a separate query
+  // (app/projects/[id]/page.tsx), never through this gate. Re-asserts the
+  // same CLIENT/NPD_EXECUTIVE denial as the first test above, specifically
+  // as a regression guard for that item.
+  it("still denies CLIENT and NPD_EXECUTIVE any CostSheet access after the MRP-visibility item", () => {
+    expect(canReadCosting("CLIENT")).toBe(false);
+    expect(canReadCosting("NPD_EXECUTIVE")).toBe(false);
+  });
 });

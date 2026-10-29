@@ -20,40 +20,117 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
       select: {
         ...CLIENT_SAFE_PROJECT_SELECT,
         milestones: true,
+        // 29 Oct 2026 (second pass), item #4: read-only task tracking —
+        // title/status/assignee/dates only, no edit affordance anywhere in
+        // this branch. assignedAt/completedAt shown alongside the status
+        // so the client sees a "delivery style" trail, not raw timestamps
+        // from createdAt/updatedAt that could be edits unrelated to status.
+        tasks: {
+          select: { id: true, title: true, status: true, dueDate: true, assignedAt: true, completedAt: true, assignee: { select: { name: true } } },
+          orderBy: { createdAt: "asc" },
+        },
       },
     });
     if (!project) notFound();
 
+    // Item #3: MRP visibility — reads ONLY the single published number,
+    // never the CostSheet itself (canReadCosting still denies Client any
+    // direct access to that model/route).
+    const publishedMrp = await prisma.costSheet.findFirst({
+      where: { projectId: project.id, mrpPublishedAt: { not: null } },
+      orderBy: { mrpPublishedAt: "desc" },
+      select: { recommendedMrp: true, currency: true, mrpPublishedAt: true },
+    });
+
+    const taskStatusLabel: Record<string, string> = {
+      TODO: "To do",
+      IN_PROGRESS: "In progress",
+      BLOCKED: "Blocked",
+      DONE: "Delivered",
+    };
+    const taskStatusBadgeClass: Record<string, string> = {
+      TODO: "fm-badge",
+      IN_PROGRESS: "fm-badge fm-badge-gold",
+      BLOCKED: "fm-badge fm-badge-warn",
+      DONE: "fm-badge fm-badge-good",
+    };
+
     return (
-      <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 700 }}>
-        <h1>{project.name}</h1>
-        <p style={{ color: "#555" }}>
-          Status: {project.status}
-          {project.targetDate ? ` · target ${new Date(project.targetDate).toLocaleDateString()}` : ""}
-          {project.lead ? ` · led by ${project.lead.name}` : ""}
-        </p>
+      <main>
+        <div className="fm-page-head">
+          <h1>{project.name}</h1>
+          <p className="fm-muted">
+            {project.status}
+            {project.targetDate ? ` · target ${new Date(project.targetDate).toLocaleDateString()}` : ""}
+            {project.lead ? ` · led by ${project.lead.name}` : ""}
+          </p>
+        </div>
+
         {!project.advancePaymentVerifiedAt ? (
           <div className="fm-advance-banner" role="status">
             Work on this project starts once your 60% advance payment is verified.
             You&apos;ll see a notification here as soon as that happens.
           </div>
         ) : null}
-        <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Milestones</h2>
-        <MilestoneList
-          milestones={project.milestones.map((m) => ({
-            id: m.id,
-            title: m.title,
-            status: m.status,
-            dueDate: m.dueDate ? m.dueDate.toISOString() : null,
-          }))}
-          role="CLIENT"
-        />
 
-        <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Documents</h2>
-        <Link href={`/projects/${project.id}/documents`}>Open documents →</Link>
+        {publishedMrp?.recommendedMrp ? (
+          <div className="fm-stat-row">
+            <div className="glass glass-sm fm-stat">
+              <div className="fm-stat-value">
+                {publishedMrp.recommendedMrp.toString()} {publishedMrp.currency}
+              </div>
+              <div className="fm-stat-label">MRP</div>
+            </div>
+          </div>
+        ) : null}
 
-        <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Invoices</h2>
-        <Link href={`/projects/${project.id}/costing`}>Open invoices →</Link>
+        <div className="fm-section-grid" style={{ marginTop: 20 }}>
+          <div className="glass glass-sm glass-card fm-section">
+            <h3>Milestones</h3>
+            <MilestoneList
+              milestones={project.milestones.map((m) => ({
+                id: m.id,
+                title: m.title,
+                status: m.status,
+                dueDate: m.dueDate ? m.dueDate.toISOString() : null,
+              }))}
+              role="CLIENT"
+            />
+          </div>
+
+          <div className="glass glass-sm glass-card fm-section">
+            <h3>Tasks</h3>
+            {project.tasks.length === 0 ? (
+              <p className="fm-empty">Nothing here right now.</p>
+            ) : (
+              <ul>
+                {project.tasks.map((t: (typeof project.tasks)[number]) => (
+                  <li key={t.id}>
+                    {t.title}
+                    {" "}
+                    <span className={taskStatusBadgeClass[t.status]}>{taskStatusLabel[t.status] ?? t.status}</span>
+                    <span className="fm-li-meta">
+                      {t.assignee ? `${t.assignee.name} · ` : ""}
+                      {t.dueDate ? `due ${new Date(t.dueDate).toLocaleDateString()}` : "no due date"}
+                      {t.assignedAt ? ` · assigned ${new Date(t.assignedAt).toLocaleDateString()}` : ""}
+                      {t.completedAt ? ` · completed ${new Date(t.completedAt).toLocaleDateString()}` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="glass glass-sm glass-card fm-section">
+            <h3>Documents</h3>
+            <Link href={`/projects/${project.id}/documents`}>Open documents →</Link>
+          </div>
+
+          <div className="glass glass-sm glass-card fm-section">
+            <h3>Invoices</h3>
+            <Link href={`/projects/${project.id}/costing`}>Open invoices →</Link>
+          </div>
+        </div>
       </main>
     );
   }

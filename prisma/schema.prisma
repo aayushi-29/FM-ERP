@@ -75,6 +75,10 @@ model User {
   proposalsReviewed     Proposal[]      @relation("ProposalReviewer")
   stockMovementsRecorded StockMovement[] @relation("StockMovementRecorder")
 
+  // 29 Oct 2026 (second pass) additions.
+  paymentClaimsSubmitted PaymentClaim[] @relation("PaymentClaimSubmitter")
+  paymentClaimsResponded PaymentClaim[] @relation("PaymentClaimResponder")
+
   @@index([clientOrgId])
 }
 
@@ -295,6 +299,17 @@ model Task {
   dependents  Task[]     @relation("TaskDependency")
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+
+  // 29 Oct 2026 (second pass): distinct from createdAt/updatedAt so a
+  // client-visible "delivery style" view can show exactly when a task was
+  // handed to its current assignee and when it was finished, without that
+  // reading being muddled by an unrelated title/description edit touching
+  // updatedAt too. assignedAt is set/refreshed every time assigneeId
+  // changes (including the first assignment); completedAt is set the
+  // moment status transitions to DONE and cleared if it's moved back to
+  // any other status (app/api/tasks/[id]/route.ts).
+  assignedAt  DateTime?
+  completedAt DateTime?
 
   @@index([projectId])
   @@index([assigneeId])
@@ -569,6 +584,18 @@ model CostSheet {
   markupPercent           Decimal? @db.Decimal(6, 3)
   recommendedSellingPrice Decimal? @db.Decimal(14, 4)
 
+  // 29 Oct 2026 (second pass): MRP visibility. recommendedMrp is a separate,
+  // Admin-entered final price — NOT derived from costPerUnit/
+  // recommendedSellingPrice, since those are a suggestion computed from an
+  // unconfirmed formula (Decision #4) while this is the number Admin
+  // actually decides to charge. mrpPublishedAt (null = not published) is the
+  // single switch an Admin flips to let the client see ONLY this one number;
+  // nothing else on CostSheet is ever exposed to a Client — canReadCosting
+  // in lib/costing/scope.ts is untouched and still denies Client all direct
+  // access to this model. See docs/decisions.md.
+  recommendedMrp  Decimal?  @db.Decimal(14, 2)
+  mrpPublishedAt  DateTime?
+
   currency             String   @default("INR")
   notes                String?  // free-text assumptions — e.g. which supplier quote, what's excluded
   supersedesId         String?  // a recalculation creates a new row and points here — never overwrites
@@ -657,6 +684,7 @@ model Invoice {
   lines    InvoiceLine[]
   payments Payment[]
   creditNotes CreditNote[]
+  paymentClaims PaymentClaim[]
 
   @@index([projectId])
 }
@@ -684,6 +712,12 @@ model Payment {
   verifiedBy      User?    @relation("PaymentVerifier", fields: [verifiedById], references: [id])
   receivedAt      DateTime @default(now())
 
+  // 29 Oct 2026 (second pass): set when this Payment was created by an
+  // Admin Acknowledging a PaymentClaim, rather than recorded from scratch —
+  // see PaymentClaim.resultingPaymentId above (the other side of this
+  // 1:1). Null for every Payment recorded the original way.
+  sourceClaim PaymentClaim?
+
   @@index([invoiceId])
 }
 
@@ -700,13 +734,58 @@ model CreditNote {
   @@index([invoiceId])
 }
 
+// 29 Oct 2026 (second pass): a Client-submitted claim that a payment was
+// made, layered on top of the existing Payment model without touching it —
+// Payment stays Admin-only and remains the system of record (see
+// docs/decisions.md). A claim never changes Invoice.status and never
+// creates a Payment by itself; only an Admin's Acknowledge action does
+// that, by creating a real Payment from the claimed details (same as if
+// Admin had recorded+verified it manually from a bank statement).
+enum PaymentClaimStatus {
+  PENDING
+  ACKNOWLEDGED
+  REJECTED
+}
+
+model PaymentClaim {
+  id                            String              @id @default(cuid())
+  invoiceId                     String
+  invoice                       Invoice             @relation(fields: [invoiceId], references: [id])
+  submittedById                 String
+  submittedBy                   User                @relation("PaymentClaimSubmitter", fields: [submittedById], references: [id])
+  amount                        Decimal             @db.Decimal(14, 2)
+  bankAccountNumber             String
+  paymentMode                   String
+  acknowledgementOrInvoiceNumber String
+  status                        PaymentClaimStatus  @default(PENDING)
+  submittedAt                   DateTime            @default(now())
+  respondedById                 String?
+  respondedBy                   User?               @relation("PaymentClaimResponder", fields: [respondedById], references: [id])
+  respondedAt                   DateTime?
+  adminNote                     String?
+  // Set only when Acknowledge creates the real Payment, so a claim's
+  // history stays linkable to the record it produced.
+  resultingPaymentId            String?             @unique
+  resultingPayment              Payment?            @relation(fields: [resultingPaymentId], references: [id])
+
+  @@index([invoiceId])
+}
+
 // ---------- Supplier / material records only (Decision #7 — no ledger yet) ----------
 
+// 29 Oct 2026 (second pass): `contact` (a single free-text field) replaced
+// with two explicit fields — Food Monk's staff were putting a person's
+// name and a phone number into one box with no consistent separator,
+// which made the list unscannable. `name` above already serves as the
+// company name, so these two are specifically the *person* to call and
+// their number — see docs/decisions.md for the data-migration note on
+// existing `contact` values.
 model Supplier {
-  id        String   @id @default(cuid())
-  name      String
-  contact   String?
-  createdAt DateTime @default(now())
+  id                String   @id @default(cuid())
+  name              String
+  contactPersonName String?
+  contactPhone      String?
+  createdAt         DateTime @default(now())
 
   materials RawMaterial[]
 }

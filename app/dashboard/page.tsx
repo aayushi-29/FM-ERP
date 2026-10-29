@@ -166,6 +166,45 @@ async function ProjectLeadSection({ user }: { user: SessionUser }) {
       </div>
 
       <div className="fm-section-grid">
+        {/* 29 Oct 2026 (second pass), item #6: active work, not just
+            overdue/exception items — so a Project Lead with nothing
+            overdue still sees what's actually in flight. */}
+        <Section title="Your active projects">
+          {d.activeProjects.length === 0 ? (
+            <Empty />
+          ) : (
+            <ul>
+              {d.activeProjects.map((p: typeof d.activeProjects[number]) => (
+                <li key={p.id}>
+                  <Link href={`/projects/${p.id}`}>{p.name}</Link>
+                  <span className="fm-li-meta">
+                    {p.taskCount} task{p.taskCount === 1 ? "" : "s"} · {p.openMilestoneCount} open milestone
+                    {p.openMilestoneCount === 1 ? "" : "s"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+
+        <Section title="Formulations in flight">
+          {d.inFlightFormulations.length === 0 ? (
+            <Empty />
+          ) : (
+            <ul>
+              {d.inFlightFormulations.map((v: typeof d.inFlightFormulations[number]) => (
+                <li key={v.id}>
+                  <Link href={`/formulation-versions/${v.id}`}>
+                    {v.formulation.product.project.name} — {v.formulation.product.name} / {v.formulation.name} v
+                    {v.versionNumber}
+                  </Link>
+                  <span className="fm-li-meta">{v.status} · by {v.author.name}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+
         <Section title="Overdue tasks">
           {d.overdueTasks.length === 0 ? (
             <Empty />
@@ -312,6 +351,26 @@ async function NpdExecutiveSection({ user }: { user: SessionUser }) {
                   {t.formulationVersion.formulation.product.name} / {t.formulationVersion.formulation.name} v
                   {t.formulationVersion.versionNumber}
                   <span className="fm-li-meta">{t.status}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+
+        {/* 29 Oct 2026 (second pass), item #6: low-stock flags from item
+            #1, surfaced here so an NPD Executive doesn't have to go check
+            /raw-materials just to see if anything needs reordering. */}
+        <Section title="Raw materials running low">
+          {d.lowStock.length === 0 ? (
+            <Empty />
+          ) : (
+            <ul>
+              {d.lowStock.map((m: typeof d.lowStock[number]) => (
+                <li key={m.id}>
+                  <Link href="/raw-materials">{m.name}</Link>
+                  <span className="fm-li-meta">
+                    {m.stockOnHand.toString()} {m.defaultUnit} on hand · warn below {m.reorderThreshold?.toString()}
+                  </span>
                 </li>
               ))}
             </ul>

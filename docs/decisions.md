@@ -26,6 +26,8 @@ rather than drawn from the baseline.
 | 13 | Proposal/Quotation workflow | New: Create → Internal Review → Approval → Send to Client, with a revision loop back to Create. Gates lead conversion. | **Added 29 Oct 2026 on the "Changed - Working Logic" branch — see note below** |
 | 14 | Cost Intelligence — suggested selling price | New: optional markup-on-cost input produces a non-authoritative suggested selling price alongside each cost sheet | **Added 29 Oct 2026 on the "Changed - Working Logic" branch — see note below** |
 | 15 | Dedicated Client Portal page | New: a consolidated Client-facing landing page (own project status, milestones, approved documents, invoices), in addition to the existing dashboard/project views | **Added 29 Oct 2026 on the "Changed - Working Logic" branch — see note below** |
+| 16 | Client payment claims | New: a Client can submit a claim that they've paid an invoice (amount, bank account, mode, acknowledgement/reference no.); an Admin verifies it by Acknowledging (which creates the real Payment) or Rejecting (with a reason). The existing Admin-only Payment recording path is unchanged and stays the system of record. | **Added 29 Oct 2026 (second pass) on the "Changed - Working Logic" branch — see note below** |
+| 17 | MRP visibility to client | New: an Admin-entered `recommendedMrp` on a CostSheet, publishable as a single number ("MRP") on the client's project view. The CostSheet record itself (cost breakdown, `canReadCosting`) stays completely closed to Client — only this one published number is ever exposed. | **Added 29 Oct 2026 (second pass) on the "Changed - Working Logic" branch — see note below** |
 
 ## Non-negotiables carried into every module
 
@@ -149,3 +151,118 @@ route/page continues to work as already documented.
   dashboard's Client section and each project's own Client view. Neither of those is
   removed or changed; this is an additional, more complete summary, not a
   replacement.
+
+## Superseding note — "Changed - Working Logic" branch, 29 Oct 2026 (second pass)
+
+A ten-item feature pass confirmed with the user on the same day as the note above,
+so it's labeled "(second pass)" to keep the two 29 Oct notes distinct. Covers Decision
+#7 again (a narrower, deliberate reaffirmation — not a further reversal), the two new
+Decisions #16/#17 above, and seven implementation-level changes that don't warrant
+their own numbered decision (same convention the first superseding note used for
+in-app notifications, COA images, etc.). Nothing here removes or changes any
+behavior documented in the two notes above it — additive only.
+
+- **Decision #7 — reaffirmed, not re-reversed**: the new spec asked for a
+  `lowStockThreshold` field and said explicitly "no movement ledger/history
+  required," which reads as a parallel, lighter-weight mechanism to the
+  `reorderThreshold` + `StockMovement` ledger already built on this branch (first
+  pass, 29 Oct 2026). **Interpretation, flagged here rather than guessed
+  silently**: building a second field with the same meaning as `reorderThreshold`
+  would fragment "what's the low-stock threshold for this material" into two
+  places that could disagree. Nothing new was added to `prisma/schema.prisma` for
+  this item — `stockOnHand`/`reorderThreshold`/`StockMovement` already fully cover
+  it. What *was* added is the "simple way to adjust stockOnHand" the spec also
+  asked for: `lib/inventory/stock.ts`'s `setStockOnHand` (and
+  `POST /api/raw-materials/[id]/set-stock`, `app/raw-materials/set-stock-form.tsx`)
+  lets someone enter the number they actually counted; it computes the delta and
+  calls the existing `recordStockMovement`, so a manual count still produces a
+  `StockMovement` row and still goes through the existing negative-stock guard and
+  crossing-only `notifyCompanyWide` alert. The low-stock flag on
+  `/raw-materials` is now a clearer "Low stock" badge (previously inline "⚠ low"
+  text) per the spec's wording, with no change to when it fires.
+- **Decision #16 — Client payment claims**: new `PaymentClaim` model
+  (`prisma/schema.prisma`), `PaymentClaimStatus` (`PENDING`/`ACKNOWLEDGED`/
+  `REJECTED`). `lib/payments/claims.ts` holds the pure decision logic;
+  `POST /api/invoices/[id]/payment-claims` (Client-only, blocked on a `PAID`/
+  `CANCELLED` invoice) creates the claim and notifies "company" via `notify()`;
+  `POST /api/payment-claims/[id]/acknowledge` (Admin-only) creates the real,
+  verified `Payment` from the claimed amount/mode/reference — `verifiedById` is set
+  to the acknowledging Admin in the same write, since Acknowledge *is* the
+  verification — links it back via `PaymentClaim.resultingPaymentId`, and notifies
+  "client"; `POST /api/payment-claims/[id]/reject` (Admin-only) takes a reason,
+  never creates a `Payment`, and notifies "client" with that reason. The existing
+  Admin-only `POST /api/invoices/[id]/payments` route is completely untouched — it
+  remains the only way to record a payment that didn't originate as a claim.
+- **Decision #17 — MRP visibility**: `CostSheet` gains `recommendedMrp` (nullable,
+  Admin-entered, unrelated to `costPerUnit`/`recommendedSellingPrice`) and
+  `mrpPublishedAt` (nullable timestamp — the publish/unpublish switch, same
+  null-means-off convention as `RawMaterial.reorderThreshold`).
+  `PATCH /api/cost-sheets/[id]` (Admin-only, via `canManageCosting`) sets one or
+  both; publishing notifies "client". `lib/costing/scope.ts`'s `canReadCosting` is
+  **unmodified** — Client still cannot read a `CostSheet` at all. The client-facing
+  project page (`app/projects/[id]/page.tsx`) instead runs its own separate query
+  for the single published number (`recommendedMrp` where `mrpPublishedAt` is set),
+  so the wall around the full cost breakdown stays exactly as it was.
+- **Client-visible task tracking**: `Task` gains `assignedAt` (refreshed on every
+  `assigneeId` change, including the first assignment) and `completedAt` (set on
+  entering `DONE`, cleared on leaving it) — decision logic factored into
+  `lib/projects/task-timestamps.ts` so it's unit-testable independent of the PATCH
+  route, and wired into both the create route (`app/api/projects/[id]/tasks/route.ts`)
+  and the existing update route (`app/api/tasks/[id]/route.ts`). The Client branch
+  of `app/projects/[id]/page.tsx` now shows a read-only Tasks card (title, a plain-
+  language status label, assignee, due date, assigned/completed dates) — no
+  create/edit/reassign affordance anywhere in that branch; the write-side PATCH
+  route already excludes `CLIENT` entirely (`requireRole(["ADMIN", "PROJECT_LEAD",
+  "NPD_EXECUTIVE"])`), so this is a read addition only.
+- **Supplier contact details**: `Supplier.contact` (one free-text field) replaced
+  with `contactPersonName`/`contactPhone`. **Data migration note** for existing
+  `contact` values (no automated migration script is run against production from
+  here — this documents the one-time step Food Monk's DB owner should run once the
+  migration lands): `UPDATE "Supplier" SET "contactPersonName" = "contact";` best-
+  effort copies every existing value into the new name field (closest approximation
+  to "best-effort: put the old value into contactPersonName" — these old values
+  were unstructured free text that could be a name, a phone number, or both, so no
+  script can split them correctly; a person should review and, where appropriate,
+  move a number into `contactPhone` by hand).
+- **Dashboards — active work, not just overdue**: `getProjectLeadDashboard` now
+  also returns the Project Lead's active (non-`COMPLETED`/`CANCELLED`) projects
+  with a task count and open-milestone count, and draft/in-review formulation
+  versions across their assigned projects by *any* author (previously that list
+  existed only on the NPD Executive's dashboard, filtered to that NPD's own
+  authorship). `getNpdExecutiveDashboard` now also returns low-stock raw materials
+  they manage (reusing item #1's crossing logic, read-only here — no new access,
+  `canManageInventory` already included `NPD_EXECUTIVE`); its "active assigned
+  tasks" list was already unfiltered by due date before this pass (not actually
+  overdue-only, on inspection), so no change was needed there. `app/dashboard
+  /page.tsx` gained new sections for both; nothing existing was removed.
+- **NPD raw-material/supplier UX**: NPD Executive's "Materials" nav link
+  (`app/components/shell.tsx`) already existed, unburied and plainly labeled, from
+  the first pass — no change needed there. `app/raw-materials/page.tsx`'s "Unit"
+  field is now a fixed dropdown (`lib/inventory/units.ts`: kg, g, l, ml, pcs, box)
+  instead of free text, applied to both the raw-material form and consistently to
+  the price-per-unit/stock fields, which are now `type="number" step="0.01"`
+  numeric inputs instead of free text. Labels were plain-language already
+  ("Price per unit", "Low stock warning at") and tightened further.
+- **Bug fixes**: `app/globals.css`'s blanket `input, select, textarea { width:
+  100% }` now excludes `input[type="checkbox"]`/`input[type="radio"]` (`width:
+  auto`), fixing the "Primary contact" checkbox on
+  `app/clients/[id]/new-contact-form.tsx` wrapping its label onto the next line.
+  "Issue a credit note" on `app/invoices/[id]/invoice-actions.tsx` is relabeled
+  "Reduce invoice amount (credit note)" with one line of helper text explaining it
+  lowers the amount owed (billing correction/discount) and doesn't touch cash or
+  payment records — no behavior change, the route and data model are untouched.
+- **Client document access**: `lib/documents/scope.ts`'s `UPLOAD_TYPES_BY_ROLE`
+  maps `CLIENT` to an empty array (previously `["OTHER"]`) — removing the upload
+  right entirely, enforced server-side in `app/api/projects/[id]/documents/route.ts`
+  (unchanged code, now simply always rejects a CLIENT upload via the existing
+  `canUploadType` check) as well as hiding the upload form client-side. Everything
+  else about the Documents module — Client's read access to `CLIENT_VISIBLE`
+  documents — is unchanged.
+- **Visual polish — client-facing views as cards**: `app/clients/[id]/page.tsx`
+  and the `CLIENT` branch of `app/projects/[id]/page.tsx` now use the existing
+  `fm-section-grid`/`fm-stat-row`/`glass glass-sm glass-card fm-section` classes
+  already used on `app/dashboard/page.tsx`, instead of bare inline-styled
+  `<ul><li>` lists. Presentation-only — no query, access rule, or data shape
+  changed; the admin-facing (non-Client) branch of `app/projects/[id]/page.tsx`
+  was intentionally left as-is, since the spec named only these two client-facing
+  spots.

@@ -105,7 +105,11 @@ export function InvoiceActions({
             </div>
           ) : null}
 
-          <h3 style={{ fontSize: ".95rem", marginTop: 16 }}>Issue a credit note</h3>
+          <h3 style={{ fontSize: ".95rem", marginTop: 16 }}>Reduce invoice amount (credit note)</h3>
+          <p style={{ color: "#777", fontSize: ".82rem", margin: "0 0 8px" }}>
+            Lowers the amount owed on this invoice — for a billing correction or discount. It does
+            not refund cash and does not touch bank or payment records.
+          </p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label>
               Amount
@@ -123,7 +127,7 @@ export function InvoiceActions({
                 setCreditReason("");
               }}
             >
-              Issue credit note
+              Reduce invoice amount
             </button>
           </div>
         </div>

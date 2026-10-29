@@ -75,10 +75,26 @@ export async function getProjectLeadDashboard(user: SessionUser) {
   const projectIds = Array.from(new Set([...assignedProjectIds, ...ledProjectIds]));
 
   if (projectIds.length === 0) {
-    return { projectIds: [], overdueTasks: [], overdueMilestones: [], pendingApprovals: [], invoicesAwaitingAction: [] };
+    return {
+      projectIds: [],
+      overdueTasks: [],
+      overdueMilestones: [],
+      pendingApprovals: [],
+      invoicesAwaitingAction: [],
+      activeProjects: [],
+      inFlightFormulations: [],
+    };
   }
 
-  const [overdueTasks, overdueMilestones, pendingApprovals, invoicesAwaitingAction] = await Promise.all([
+  // 29 Oct 2026 (second pass), item #6: a Project Lead with no overdue work
+  // previously saw an empty dashboard even with plenty of active work.
+  // "Active" projects (not COMPLETED/CANCELLED) with a quick status, and
+  // draft/in-review formulation versions across their assigned projects —
+  // any author, not just their own — fill that gap. Both are read-only
+  // summaries, same boundary as every other query here (see the file-level
+  // comment): a Project Lead could already see all of this by opening each
+  // project individually.
+  const [overdueTasks, overdueMilestones, pendingApprovals, invoicesAwaitingAction, activeProjectsRaw, inFlightFormulations] = await Promise.all([
     prisma.task.findMany({
       where: { projectId: { in: projectIds }, dueDate: { lt: now }, status: { not: "DONE" } },
       select: OVERDUE_TASK_SELECT,
@@ -108,13 +124,50 @@ export async function getProjectLeadDashboard(user: SessionUser) {
       orderBy: { dueDate: "asc" },
       take: 10,
     }),
+    prisma.project.findMany({
+      where: { id: { in: projectIds }, status: { notIn: ["COMPLETED", "CANCELLED"] } },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        _count: { select: { tasks: true } },
+        milestones: { where: { status: { in: ["PENDING", "SUBMITTED"] } }, select: { id: true } },
+      },
+      orderBy: { name: "asc" },
+      take: 10,
+    }),
+    prisma.formulationVersion.findMany({
+      where: { status: { in: ["DRAFT", "IN_REVIEW"] }, formulation: { product: { projectId: { in: projectIds } } } },
+      select: {
+        id: true,
+        versionNumber: true,
+        status: true,
+        author: { select: { name: true } },
+        formulation: { select: { name: true, product: { select: { name: true, project: { select: { id: true, name: true } } } } } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
   ]);
 
-  return { projectIds, overdueTasks, overdueMilestones, pendingApprovals, invoicesAwaitingAction };
+  const activeProjects = activeProjectsRaw.map((p: (typeof activeProjectsRaw)[number]) => ({
+    id: p.id,
+    name: p.name,
+    status: p.status,
+    taskCount: p._count.tasks,
+    openMilestoneCount: p.milestones.length,
+  }));
+
+  return { projectIds, overdueTasks, overdueMilestones, pendingApprovals, invoicesAwaitingAction, activeProjects, inFlightFormulations };
 }
 
 export async function getNpdExecutiveDashboard(user: SessionUser) {
-  const [myTasks, draftVersions, rejectedVersions, myTrials] = await Promise.all([
+  const { canManageInventory } = await import("@/lib/inventory/scope");
+
+  const [myTasks, draftVersions, rejectedVersions, myTrials, lowStockMaterials] = await Promise.all([
+    // 29 Oct 2026 (second pass), item #6: all active assigned tasks
+    // regardless of due date — not just overdue ones, which previously
+    // meant an NPD Executive on schedule saw nothing here at all.
     prisma.task.findMany({
       where: { assigneeId: user.id, status: { not: "DONE" } },
       select: OVERDUE_TASK_SELECT,
@@ -156,9 +209,25 @@ export async function getNpdExecutiveDashboard(user: SessionUser) {
       orderBy: { conductedAt: "desc" },
       take: 10,
     }),
+    // 29 Oct 2026 (second pass), item #6: raw materials/suppliers they
+    // manage with any low-stock flags from item #1. canManageInventory
+    // already includes NPD_EXECUTIVE (lib/inventory/scope.ts) — this is
+    // the same "no new access, just a surfaced summary" rule as the rest
+    // of this file.
+    canManageInventory(user.role)
+      ? prisma.rawMaterial.findMany({
+          where: { reorderThreshold: { not: null } },
+          select: { id: true, name: true, defaultUnit: true, stockOnHand: true, reorderThreshold: true },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
   ]);
 
-  return { myTasks, draftVersions, rejectedVersions, myTrials };
+  const lowStock = lowStockMaterials.filter(
+    (m: (typeof lowStockMaterials)[number]) => m.reorderThreshold != null && Number(m.stockOnHand) <= Number(m.reorderThreshold)
+  );
+
+  return { myTasks, draftVersions, rejectedVersions, myTrials, lowStock };
 }
 
 export async function getClientDashboard(user: SessionUser) {

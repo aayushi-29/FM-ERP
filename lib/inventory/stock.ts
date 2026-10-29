@@ -66,3 +66,39 @@ export async function recordStockMovement(
 
   return { movement, rawMaterial: updated };
 }
+
+// 29 Oct 2026 (second pass): "a simple way to adjust stockOnHand (a manual
+// 'set current stock' action is enough for now)" — built on top of
+// recordStockMovement above rather than as a separate write path, so a
+// manual stock count still produces a StockMovement row (useful context
+// for whoever looks at this material later) and still goes through the
+// same negative-stock guard and crossing-only low-stock notification. This
+// is the interpretation documented in docs/decisions.md: the existing
+// reorderThreshold/stockOnHand/StockMovement infrastructure (29 Oct 2026,
+// first pass) already covers everything the new spec's "lowStockThreshold,
+// no ledger" item asked for, so nothing new was added to the schema for
+// this — only this convenience action.
+export async function setStockOnHand(
+  input: { rawMaterialId: string; targetStock: string | Decimal; recordedById: string },
+  db: DbClient = prisma
+) {
+  const rawMaterial = await db.rawMaterial.findUnique({ where: { id: input.rawMaterialId } });
+  if (!rawMaterial) {
+    throw new ValidationError("Raw material not found");
+  }
+
+  const target = new Decimal(input.targetStock);
+  if (target.lt(0)) {
+    throw new ValidationError("Stock on hand can't be negative");
+  }
+
+  const delta = target.sub(rawMaterial.stockOnHand);
+  if (delta.isZero()) {
+    return { movement: null, rawMaterial };
+  }
+
+  return recordStockMovement(
+    { rawMaterialId: input.rawMaterialId, quantityDelta: delta, reason: "Manual stock count", recordedById: input.recordedById },
+    db
+  );
+}

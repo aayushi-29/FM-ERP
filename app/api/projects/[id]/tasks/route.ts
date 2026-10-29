@@ -92,6 +92,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
           title: input.title,
           description: input.description,
           assigneeId: input.assigneeId,
+          // 29 Oct 2026 (second pass): set the moment an assignee is given,
+          // same as a reassignment later (see [id]/route.ts's PATCH).
+          assignedAt: input.assigneeId ? new Date() : undefined,
           dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
           dependsOnId: input.dependsOnId,
         },

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { assertClientOrgAccessOrRedirect } from "@/lib/crm/scope";
@@ -18,38 +19,60 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
 
   if (!client) notFound();
 
+  const statusBadgeClass: Record<string, string> = {
+    ACTIVE: "fm-badge fm-badge-good",
+    ON_HOLD: "fm-badge fm-badge-gold",
+    COMPLETED: "fm-badge",
+    CANCELLED: "fm-badge fm-badge-warn",
+  };
+
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 700 }}>
-      <h1>{client.name}</h1>
+    <main>
+      <div className="fm-page-head">
+        <h1>{client.name}</h1>
+      </div>
 
-      <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Projects</h2>
-      {client.projects.length === 0 ? (
-        <p style={{ color: "#777" }}>None yet — the Projects module isn&apos;t built yet.</p>
-      ) : (
-        <ul>
-          {client.projects.map((p) => (
-            <li key={p.id}>{p.name} — {p.status}</li>
-          ))}
-        </ul>
-      )}
+      <div className="fm-section-grid">
+        <div className="glass glass-sm glass-card fm-section">
+          <h3>Projects</h3>
+          {client.projects.length === 0 ? (
+            <p className="fm-empty">None yet.</p>
+          ) : (
+            <ul>
+              {client.projects.map((p) => (
+                <li key={p.id}>
+                  <Link href={`/projects/${p.id}`}>{p.name}</Link>{" "}
+                  <span className={statusBadgeClass[p.status] ?? "fm-badge"}>{p.status}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
-      <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Contacts</h2>
-      {client.contacts.length === 0 ? (
-        <p style={{ color: "#777" }}>No contacts yet.</p>
-      ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {client.contacts.map((c) => (
-            <li key={c.id} style={{ padding: "6px 0", borderBottom: "1px solid #eee" }}>
-              {c.name}{c.isPrimary ? " (primary)" : ""}
-              {c.email ? ` · ${c.email}` : ""}
-              {c.phone ? ` · ${c.phone}` : ""}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <h3 style={{ fontSize: ".95rem", marginTop: 20 }}>Add a contact</h3>
-      <NewContactForm clientOrgId={client.id} />
+        <div className="glass glass-sm glass-card fm-section">
+          <h3>Contacts</h3>
+          {client.contacts.length === 0 ? (
+            <p className="fm-empty">No contacts yet.</p>
+          ) : (
+            <ul>
+              {client.contacts.map((c) => (
+                <li key={c.id}>
+                  {c.name}
+                  {c.isPrimary ? <span className="fm-badge fm-badge-gold" style={{ marginLeft: 6 }}>Primary</span> : null}
+                  <span className="fm-li-meta">
+                    {c.email ? `${c.email}` : ""}
+                    {c.email && c.phone ? " · " : ""}
+                    {c.phone ? `${c.phone}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div style={{ marginTop: 14 }}>
+            <NewContactForm clientOrgId={client.id} />
+          </div>
+        </div>
+      </div>
     </main>
   );
 }

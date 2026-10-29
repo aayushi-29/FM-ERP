@@ -2,7 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
-import { canReadCosting } from "@/lib/costing/scope";
+import { canReadCosting, canManageCosting } from "@/lib/costing/scope";
+import { MrpForm } from "./mrp-form";
 
 export default async function CostSheetDetailPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();
@@ -94,6 +95,28 @@ export default async function CostSheetDetailPage({ params }: { params: { id: st
             {costSheet.supersededBy[0]!.costPerUnit.toString()} {costSheet.currency}/unit
           </Link>
         </p>
+      ) : null}
+
+      {/* 29 Oct 2026 (second pass): MRP visibility — recommendedMrp is a
+          separate, Admin-entered final price, never derived from the cost
+          breakdown above. Publishing it surfaces ONLY this one number on
+          the client's project view; nothing else here ever reaches the
+          client (canReadCosting still denies Client any access to this
+          page/record at all). */}
+      {canManageCosting(user.role) ? (
+        <div style={{ marginTop: 20, padding: 14, background: "#f7f7f7", borderRadius: 8 }}>
+          <h2 style={{ fontSize: "1.05rem", marginTop: 0 }}>MRP for the client</h2>
+          <p style={{ color: "#777", fontSize: ".85rem" }}>
+            Set the final price to charge, separate from the cost figures above. Publishing shows
+            only this number — nothing else on this page — to the client.
+          </p>
+          <MrpForm
+            costSheetId={costSheet.id}
+            currency={costSheet.currency}
+            recommendedMrp={costSheet.recommendedMrp ? costSheet.recommendedMrp.toString() : ""}
+            published={!!costSheet.mrpPublishedAt}
+          />
+        </div>
       ) : null}
     </main>
   );

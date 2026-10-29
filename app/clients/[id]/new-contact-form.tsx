@@ -49,7 +49,7 @@ export function NewContactForm({ clientOrgId }: { clientOrgId: string }) {
       <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" required style={{ padding: 6 }} />
       <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" type="email" style={{ padding: 6 }} />
       <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (optional)" style={{ padding: 6 }} />
-      <label style={{ fontSize: ".85rem" }}>
+      <label style={{ fontSize: ".85rem", display: "flex", alignItems: "center", gap: 6 }}>
         <input type="checkbox" checked={isPrimary} onChange={(e) => setIsPrimary(e.target.checked)} /> Primary contact
       </label>
       {error ? <p role="alert" style={{ color: "#b00020", fontSize: ".85rem" }}>{error}</p> : null}

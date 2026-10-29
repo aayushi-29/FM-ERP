@@ -22,13 +22,15 @@ describe("canUploadType", () => {
     expect(canUploadType("NPD_EXECUTIVE" as any, "FORMULATION_SUMMARY" as any)).toBe(false);
   });
 
-  it("limits CLIENT to OTHER only — never an internal-looking type", () => {
-    expect(canUploadType("CLIENT" as any, "OTHER" as any)).toBe(true);
-    expect(canUploadType("CLIENT" as any, "CONTRACT" as any)).toBe(false);
-    expect(canUploadType("CLIENT" as any, "COMMERCIAL" as any)).toBe(false);
-    expect(canUploadType("CLIENT" as any, "TECHNICAL_SPEC" as any)).toBe(false);
-    expect(canUploadType("CLIENT" as any, "FORMULATION_SUMMARY" as any)).toBe(false);
-    expect(canUploadType("CLIENT" as any, "TRIAL_RECORD" as any)).toBe(false);
+  // "Changed - Working Logic" branch, 29 Oct 2026 (second pass), item #9:
+  // Client's upload right is removed entirely (was OTHER only before this
+  // pass — see docs/decisions.md) — the Client should only ever download
+  // documents an internal role marked CLIENT_VISIBLE, never upload.
+  it("denies CLIENT every document type, including OTHER", () => {
+    const allTypes = ["CONTRACT", "TECHNICAL_SPEC", "FORMULATION_SUMMARY", "TRIAL_RECORD", "COMMERCIAL", "OTHER"] as const;
+    for (const type of allTypes) {
+      expect(canUploadType("CLIENT" as any, type as any)).toBe(false);
+    }
   });
 });
 

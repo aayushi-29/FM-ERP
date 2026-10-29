@@ -5,6 +5,7 @@ import { NewSupplierForm } from "./new-supplier-form";
 import { NewRawMaterialForm } from "./new-raw-material-form";
 import { CoaUploadForm } from "./coa-upload-form";
 import { StockMovementForm } from "./stock-movement-form";
+import { SetStockForm } from "./set-stock-form";
 
 // "Add inventory management/supplier details of the raw materials used" —
 // the catalog view of Supplier/RawMaterial. 29 Oct 2026: now also shows
@@ -18,7 +19,13 @@ export default async function RawMaterialsPage() {
 
   const [suppliers, rawMaterials] = await Promise.all([
     prisma.supplier.findMany({
-      select: { id: true, name: true, contact: true, _count: { select: { materials: true } } },
+      select: {
+        id: true,
+        name: true,
+        contactPersonName: true,
+        contactPhone: true,
+        _count: { select: { materials: true } },
+      },
       orderBy: { name: "asc" },
     }),
     prisma.rawMaterial.findMany({
@@ -47,12 +54,12 @@ export default async function RawMaterialsPage() {
     <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 900 }}>
       <h1>Raw materials &amp; suppliers</h1>
       <p style={{ color: "#555", fontSize: ".9rem" }}>
-        Company-wide catalog of suppliers and the raw materials sourced from them, with Certificate
-        of Analysis images attached per material, stock on hand, and low-stock alerts.
+        See every supplier and the raw materials bought from them, keep stock counts up to
+        date, and get a warning here as soon as something runs low.
       </p>
       {lowStockCount > 0 ? (
         <p style={{ color: "#b00020", fontWeight: 600, fontSize: ".9rem" }} role="status">
-          ⚠ {lowStockCount} material{lowStockCount === 1 ? "" : "s"} at or below its reorder threshold.
+          ⚠ {lowStockCount} material{lowStockCount === 1 ? "" : "s"} running low — check the Low stock badges below.
         </p>
       ) : null}
 
@@ -65,7 +72,8 @@ export default async function RawMaterialsPage() {
             <li key={s.id} style={{ padding: "6px 0", borderBottom: "1px solid #eee", fontSize: ".9rem" }}>
               <strong>{s.name}</strong>
               <span style={{ color: "#777" }}>
-                {s.contact ? ` · ${s.contact}` : ""}
+                {s.contactPersonName ? ` · ${s.contactPersonName}` : ""}
+                {s.contactPhone ? ` · ${s.contactPhone}` : ""}
                 {` · ${s._count.materials} material${s._count.materials === 1 ? "" : "s"}`}
               </span>
             </li>
@@ -89,7 +97,7 @@ export default async function RawMaterialsPage() {
                 <th style={{ padding: "6px 8px" }}>Name</th>
                 <th style={{ padding: "6px 8px" }}>Supplier</th>
                 <th style={{ padding: "6px 8px" }}>Unit</th>
-                <th style={{ padding: "6px 8px" }}>Ref. cost/unit</th>
+                <th style={{ padding: "6px 8px" }}>Price per unit</th>
                 <th style={{ padding: "6px 8px" }}>Stock on hand</th>
                 <th style={{ padding: "6px 8px" }}>COA images</th>
               </tr>
@@ -104,16 +112,36 @@ export default async function RawMaterialsPage() {
                   <td style={{ padding: "8px" }}>{m.defaultUnit}</td>
                   <td style={{ padding: "8px" }}>{m.defaultCostPerUnit ? m.defaultCostPerUnit.toString() : "—"}</td>
                   <td style={{ padding: "8px" }}>
-                    <span style={isLow ? { color: "#b00020", fontWeight: 600 } : undefined}>
+                    <span>
                       {m.stockOnHand.toString()} {m.defaultUnit}
-                      {isLow ? " ⚠ low" : ""}
                     </span>
+                    {isLow ? (
+                      <span
+                        style={{
+                          marginLeft: 6,
+                          display: "inline-block",
+                          padding: "1px 7px",
+                          borderRadius: 999,
+                          background: "#fbe9e6",
+                          color: "#b00020",
+                          fontWeight: 600,
+                          fontSize: ".74rem",
+                        }}
+                      >
+                        Low stock
+                      </span>
+                    ) : null}
                     {m.reorderThreshold != null ? (
                       <div style={{ color: "#777", fontSize: ".78rem" }}>
-                        reorder at {m.reorderThreshold.toString()}
+                        warn below {m.reorderThreshold.toString()}
                       </div>
                     ) : null}
-                    {canManage ? <StockMovementForm rawMaterialId={m.id} /> : null}
+                    {canManage ? (
+                      <>
+                        <StockMovementForm rawMaterialId={m.id} />
+                        <SetStockForm rawMaterialId={m.id} currentStock={m.stockOnHand.toString()} />
+                      </>
+                    ) : null}
                   </td>
                   <td style={{ padding: "8px" }}>
                     {m.attachments.length === 0 ? (

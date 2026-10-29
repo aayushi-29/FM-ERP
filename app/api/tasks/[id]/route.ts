@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, assertProjectAccess, ForbiddenError } from "@/lib/auth/rbac";
 import { logProjectActivity } from "@/lib/projects/activity";
 import { assertDueDateWithinProject } from "@/lib/projects/due-date";
+import { computeAssignedAt, computeCompletedAt } from "@/lib/projects/task-timestamps";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse } from "@/lib/api/respond";
 
@@ -44,7 +45,16 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       }
       const input = selfStatusSchema.parse(json);
       const updated = await prisma.$transaction(async (tx) => {
-        const result = await tx.task.update({ where: { id: params.id }, data: { status: input.status } });
+        const result = await tx.task.update({
+          where: { id: params.id },
+          data: {
+            status: input.status,
+            // 29 Oct 2026 (second pass): completedAt set on transition into
+            // DONE, cleared if moved back out of it — see item #4 in
+            // docs/decisions.md.
+            completedAt: computeCompletedAt({ nextStatus: input.status, currentStatus: task.status }),
+          },
+        });
         await logProjectActivity(
           { projectId: task.projectId, actorId: actor.id, summary: `${task.title}: status -> ${input.status}` },
           tx
@@ -81,6 +91,11 @@ export async function PATCH(request: Request, { params }: { params: { id: string
           description: input.description,
           status: input.status,
           assigneeId: input.assigneeId,
+          // 29 Oct 2026 (second pass): assignedAt refreshed on every
+          // assigneeId change (including the first assignment);
+          // completedAt set/cleared on entering/leaving DONE.
+          assignedAt: computeAssignedAt({ nextAssigneeId: input.assigneeId, currentAssigneeId: task.assigneeId }),
+          completedAt: computeCompletedAt({ nextStatus: input.status, currentStatus: task.status }),
           dueDate: input.dueDate === null ? null : input.dueDate ? new Date(input.dueDate) : undefined,
         },
       });

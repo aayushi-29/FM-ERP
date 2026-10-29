@@ -16,7 +16,14 @@ export async function GET() {
     if (!canReadInventory(user.role)) throw new ForbiddenError("Not permitted");
 
     const suppliers = await prisma.supplier.findMany({
-      select: { id: true, name: true, contact: true, createdAt: true, _count: { select: { materials: true } } },
+      select: {
+        id: true,
+        name: true,
+        contactPersonName: true,
+        contactPhone: true,
+        createdAt: true,
+        _count: { select: { materials: true } },
+      },
       orderBy: { name: "asc" },
     });
 
@@ -26,9 +33,14 @@ export async function GET() {
   }
 }
 
+// 29 Oct 2026 (second pass): contactPersonName/contactPhone replace the old
+// single free-text `contact` field (docs/decisions.md) — name already
+// serves as the company name, these two are specifically the person to
+// call and their number.
 const createSupplierSchema = z.object({
   name: z.string().min(1).max(200),
-  contact: z.string().max(300).optional(),
+  contactPersonName: z.string().max(200).optional(),
+  contactPhone: z.string().max(60).optional(),
 });
 
 export async function POST(request: Request) {
@@ -44,7 +56,13 @@ export async function POST(request: Request) {
     const input = createSupplierSchema.parse(json);
 
     const supplier = await prisma.$transaction(async (tx) => {
-      const created = await tx.supplier.create({ data: { name: input.name, contact: input.contact } });
+      const created = await tx.supplier.create({
+        data: {
+          name: input.name,
+          contactPersonName: input.contactPersonName,
+          contactPhone: input.contactPhone,
+        },
+      });
       await logAudit(
         { actorId: actor.id, action: "supplier.created", targetType: "Supplier", targetId: created.id, after: { name: created.name } },
         tx

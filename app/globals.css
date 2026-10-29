@@ -403,6 +403,18 @@ input, select, textarea {
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
+/* 29 Oct 2026 (second pass): the blanket width:100% above also stretched
+   checkboxes/radios to full width, pushing their label text onto the next
+   line (app/clients/[id]/new-contact-form.tsx's "Primary contact" box).
+   Exclude them and give them a sane fixed size instead. */
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  height: auto;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
 input::placeholder, textarea::placeholder {
   color: var(--fm-slate);
   opacity: 0.7;

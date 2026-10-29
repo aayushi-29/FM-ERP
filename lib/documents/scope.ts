@@ -6,21 +6,23 @@ import type { DocumentType, Role } from "@prisma/client";
 // approved files" (Client).
 //
 // Interpretation flag: the matrix names "permitted types" for NPD
-// Executive and Client without listing them. Read literally against the
-// rest of the matrix: NPD Executive's whole mandate here is *technical*
-// documents, so TECHNICAL_SPEC and TRIAL_RECORD; Client's upload right
-// is separate from their read access to the business document types
-// (CONTRACT, COMMERCIAL, FORMULATION_SUMMARY), so it's limited to OTHER —
-// a place for a client to attach their own reference material (artwork,
-// a brief) without ever being able to create something that reads like an
-// internal record. Admin and Project Lead can upload any type, matching
-// their "manage" language. If Food Monk wants NPD Executive or Client to
-// reach more types, this is the one place to widen it.
+// Executive without listing them. Read literally against the rest of the
+// matrix: NPD Executive's whole mandate here is *technical* documents, so
+// TECHNICAL_SPEC and TRIAL_RECORD. Admin and Project Lead can upload any
+// type, matching their "manage" language. If Food Monk wants NPD
+// Executive to reach more types, this is the one place to widen it.
+//
+// 29 Oct 2026 (second pass): Client's upload right (previously OTHER only)
+// is removed entirely — confirmed with the user. A Client should only ever
+// download documents an internal role marked CLIENT_VISIBLE, never upload
+// their own; see docs/decisions.md. CLIENT maps to an empty array rather
+// than being left out of the record, so canUploadType stays a total
+// function and every role is still explicit here.
 const UPLOAD_TYPES_BY_ROLE: Record<Role, DocumentType[]> = {
   ADMIN: ["CONTRACT", "TECHNICAL_SPEC", "FORMULATION_SUMMARY", "TRIAL_RECORD", "COMMERCIAL", "OTHER"],
   PROJECT_LEAD: ["CONTRACT", "TECHNICAL_SPEC", "FORMULATION_SUMMARY", "TRIAL_RECORD", "COMMERCIAL", "OTHER"],
   NPD_EXECUTIVE: ["TECHNICAL_SPEC", "TRIAL_RECORD"],
-  CLIENT: ["OTHER"],
+  CLIENT: [],
 };
 
 export function canUploadType(role: Role, type: DocumentType): boolean {

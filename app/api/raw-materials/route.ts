@@ -4,6 +4,7 @@ import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
 import { requireUser, ForbiddenError } from "@/lib/auth/rbac";
 import { canReadInventory, canManageInventory } from "@/lib/inventory/scope";
+import { RAW_MATERIAL_UNITS } from "@/lib/inventory/units";
 import { logAudit } from "@/lib/audit";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse } from "@/lib/api/respond";
@@ -44,7 +45,9 @@ export async function GET() {
 const createRawMaterialSchema = z.object({
   name: z.string().min(1).max(200),
   supplierId: z.string().cuid().optional(),
-  defaultUnit: z.string().min(1).max(30),
+  // 29 Oct 2026 (second pass): fixed list instead of free text, to stop
+  // the same unit being typed inconsistently (lib/inventory/units.ts).
+  defaultUnit: z.enum(RAW_MATERIAL_UNITS),
   defaultCostPerUnit: z.string().regex(/^\d+(\.\d+)?$/).optional(),
   // 29 Oct 2026: stock monitoring addition — null/omitted means no
   // low-stock alerting is configured for this material.
