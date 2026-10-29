@@ -9,6 +9,7 @@ import { IngredientLines } from "./ingredient-lines";
 import { TrialsSection } from "./trials-section";
 import { VersionActions } from "./version-actions";
 import { RevisionRequestsSection } from "./revision-requests-section";
+import { Shell } from "@/app/components/shell";
 
 export default async function FormulationVersionPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();
@@ -40,7 +41,7 @@ export default async function FormulationVersionPage({ params }: { params: { id:
     });
 
     return (
-      <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 600 }}>
+      <Shell user={user}>
         <h1>{version.formulation.product.name} — {version.formulation.name}</h1>
         <p style={{ color: "#555" }}>
           Version {version.versionNumber} · Approved
@@ -60,7 +61,7 @@ export default async function FormulationVersionPage({ params }: { params: { id:
           }))}
           canFile
         />
-      </main>
+      </Shell>
     );
   }
 
@@ -129,7 +130,7 @@ export default async function FormulationVersionPage({ params }: { params: { id:
   const trialsCreatable = canEditDraft && executionUnlocked; // scope narrows per-trial to the conductor
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 760 }}>
+    <Shell user={user}>
       <p style={{ marginBottom: 4 }}>
         <Link href={`/formulations/${version.formulation.id}`}>← {version.formulation.product.name} / {version.formulation.name}</Link>
       </p>
@@ -239,6 +240,6 @@ export default async function FormulationVersionPage({ params }: { params: { id:
         currentUserId={user.id}
         projectDocuments={projectDocuments.map((d) => ({ id: d.id, type: d.type, createdAt: d.createdAt.toISOString() }))}
       />
-    </main>
+    </Shell>
   );
 }

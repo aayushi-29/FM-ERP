@@ -2,12 +2,13 @@ import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { NewUserForm } from "./new-user-form";
 import { UserActions } from "./user-actions";
+import { Shell } from "@/app/components/shell";
 
 // Internal tooling, not the themed role dashboard promised for step 5 of
 // the build order — functional, unstyled-on-purpose, so it doesn't get
 // mistaken for finished UI.
 export default async function AdminUsersPage() {
-  await requireRoleOrRedirect(["ADMIN"]);
+  const user = await requireRoleOrRedirect(["ADMIN"]);
 
   const [users, clientOrgs] = await Promise.all([
     prisma.user.findMany({
@@ -18,7 +19,7 @@ export default async function AdminUsersPage() {
   ]);
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 800 }}>
+    <Shell user={user}>
       <h1>Users</h1>
       <p style={{ color: "#555" }}>Admin-only. No self-registration — every account starts here.</p>
 
@@ -49,6 +50,6 @@ export default async function AdminUsersPage() {
 
       <h2 style={{ marginTop: 32, fontSize: "1.1rem" }}>Add a user</h2>
       <NewUserForm clientOrgs={clientOrgs} />
-    </main>
+    </Shell>
   );
 }

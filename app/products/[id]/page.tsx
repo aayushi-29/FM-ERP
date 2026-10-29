@@ -4,6 +4,7 @@ import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth
 import { prisma } from "@/lib/prisma";
 import { isExecutionUnlocked } from "@/lib/projects/execution-gate";
 import { NewFormulationForm } from "./new-formulation-form";
+import { Shell } from "@/app/components/shell";
 
 export default async function ProductDetailPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();
@@ -39,7 +40,7 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
   const canCreate = (user.role === "ADMIN" || user.role === "NPD_EXECUTIVE") && executionUnlocked;
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 700 }}>
+    <Shell user={user}>
       <p style={{ marginBottom: 4 }}>
         <Link href={`/projects/${product.projectId}/products`}>← {product.project.name} products</Link>
       </p>
@@ -77,6 +78,6 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
           <NewFormulationForm productId={product.id} />
         </div>
       ) : null}
-    </main>
+    </Shell>
   );
 }

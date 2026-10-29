@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { requireUserOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
+import { Shell } from "@/app/components/shell";
 
 // 29 Oct 2026: dedicated Client Portal page — confirmed with the user.
 // Baseline §11 describes the Client's own view as "own project status,
@@ -18,10 +19,10 @@ export default async function ClientPortalPage() {
   if (user.role !== "CLIENT") redirect("/dashboard");
   if (!user.clientOrgId) {
     return (
-      <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 800 }}>
+      <Shell user={user}>
         <h1>Client Portal</h1>
         <p style={{ color: "#777" }}>Your account isn&apos;t linked to a client organization yet.</p>
-      </main>
+      </Shell>
     );
   }
 
@@ -52,7 +53,7 @@ export default async function ClientPortalPage() {
   });
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 900 }}>
+    <Shell user={user}>
       <h1>Client Portal</h1>
       <p style={{ color: "#555", fontSize: ".9rem" }}>
         Status, milestones, approved documents, and invoices for all your projects in one place.
@@ -141,6 +142,6 @@ export default async function ClientPortalPage() {
           </section>
         ))
       )}
-    </main>
+    </Shell>
   );
 }

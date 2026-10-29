@@ -4,6 +4,7 @@ import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth
 import { prisma } from "@/lib/prisma";
 import { canReadCosting, canManageCosting } from "@/lib/costing/scope";
 import { MrpForm } from "./mrp-form";
+import { Shell } from "@/app/components/shell";
 
 export default async function CostSheetDetailPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();
@@ -36,7 +37,7 @@ export default async function CostSheetDetailPage({ params }: { params: { id: st
   ];
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 640 }}>
+    <Shell user={user}>
       <p style={{ marginBottom: 4 }}>
         <Link href={`/projects/${costSheet.projectId}/costing`}>← Costing &amp; Invoicing</Link>
       </p>
@@ -118,6 +119,6 @@ export default async function CostSheetDetailPage({ params }: { params: { id: st
           />
         </div>
       ) : null}
-    </main>
+    </Shell>
   );
 }

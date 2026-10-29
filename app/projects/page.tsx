@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUserOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { getVisibleProjectIds, CLIENT_SAFE_PROJECT_SELECT } from "@/lib/projects/scope";
+import { Shell } from "@/app/components/shell";
 
 export default async function ProjectsPage() {
   const user = await requireUserOrRedirect();
@@ -24,32 +25,40 @@ export default async function ProjectsPage() {
           orderBy: { createdAt: "desc" },
         });
 
+  const statusBadgeClass: Record<string, string> = {
+    ACTIVE: "fm-badge fm-badge-good",
+    ON_HOLD: "fm-badge fm-badge-gold",
+    COMPLETED: "fm-badge",
+    CANCELLED: "fm-badge fm-badge-warn",
+  };
+
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 700 }}>
-      <h1>Projects</h1>
+    <Shell user={user}>
+      <div className="fm-page-head">
+        <h1>Projects</h1>
+        {user.role === "ADMIN" ? (
+          <Link href="/projects/new" className="fm-badge fm-badge-gold">
+            + New project
+          </Link>
+        ) : null}
+      </div>
 
       {projects.length === 0 ? (
-        <p>No projects yet.</p>
+        <p className="fm-empty">No projects yet.</p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
+        <div className="fm-section-grid">
           {projects.map((p) => (
-            <li key={p.id} style={{ padding: "10px 0", borderBottom: "1px solid #eee" }}>
-              <Link href={`/projects/${p.id}`}>{p.name}</Link>
-              <span style={{ color: "#777", fontSize: ".85rem", marginLeft: 8 }}>
-                {p.status}
+            <Link key={p.id} href={`/projects/${p.id}`} className="glass glass-sm glass-card fm-section">
+              <h3>{p.name}</h3>
+              <p className="fm-li-meta">
+                <span className={statusBadgeClass[p.status] ?? "fm-badge"}>{p.status}</span>
                 {"clientOrg" in p && p.clientOrg ? ` · ${p.clientOrg.name}` : ""}
                 {"lead" in p && p.lead ? ` · led by ${p.lead.name}` : ""}
-              </span>
-            </li>
+              </p>
+            </Link>
           ))}
-        </ul>
+        </div>
       )}
-
-      {user.role === "ADMIN" ? (
-        <p style={{ marginTop: 20 }}>
-          <Link href="/projects/new">+ New project</Link>
-        </p>
-      ) : null}
-    </main>
+    </Shell>
   );
 }

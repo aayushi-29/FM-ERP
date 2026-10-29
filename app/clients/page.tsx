@@ -3,6 +3,7 @@ import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { getVisibleClientOrgIds } from "@/lib/crm/scope";
 import { NewClientForm } from "./new-client-form";
+import { Shell } from "@/app/components/shell";
 
 // Admin: full access. Project Lead: only orgs they're assigned to via a
 // project (see lib/crm/scope.ts). Internal tooling, not the final themed UI.
@@ -17,7 +18,7 @@ export default async function ClientsPage() {
   });
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 700 }}>
+    <Shell user={user}>
       <h1>Clients</h1>
       {user.role === "PROJECT_LEAD" ? (
         <p style={{ color: "#555" }}>Showing only organizations you&apos;re assigned to via a project.</p>
@@ -44,6 +45,6 @@ export default async function ClientsPage() {
           <NewClientForm />
         </>
       ) : null}
-    </main>
+    </Shell>
   );
 }

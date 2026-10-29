@@ -7,6 +7,7 @@ import { PAYMENT_STAGE_LABEL } from "@/lib/payments/stage";
 import { NewCostSheetForm } from "./new-cost-sheet-form";
 import { NewExpenseForm } from "./new-expense-form";
 import { NewInvoiceForm } from "./new-invoice-form";
+import { Shell } from "@/app/components/shell";
 
 export default async function CostingPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();
@@ -58,7 +59,7 @@ export default async function CostingPage({ params }: { params: { id: string } }
   const invoices = user.role === "CLIENT" ? invoicesRaw.filter((i) => isInvoiceVisibleToClient(i.status)) : invoicesRaw;
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 800 }}>
+    <Shell user={user}>
       <p style={{ marginBottom: 4 }}>
         <Link href={`/projects/${project.id}`}>← {project.name}</Link>
       </p>
@@ -142,6 +143,6 @@ export default async function CostingPage({ params }: { params: { id: string } }
           <NewInvoiceForm projectId={project.id} />
         </div>
       ) : null}
-    </main>
+    </Shell>
   );
 }

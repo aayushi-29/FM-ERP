@@ -1,9 +1,10 @@
 import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { NewProjectForm } from "./new-project-form";
+import { Shell } from "@/app/components/shell";
 
 export default async function NewProjectPage() {
-  await requireRoleOrRedirect(["ADMIN"]);
+  const user = await requireRoleOrRedirect(["ADMIN"]);
 
   const [clientOrgs, leads] = await Promise.all([
     prisma.clientOrganization.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
@@ -15,7 +16,7 @@ export default async function NewProjectPage() {
   ]);
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 500 }}>
+    <Shell user={user}>
       <h1>New project</h1>
       {clientOrgs.length === 0 || leads.length === 0 ? (
         <p style={{ color: "#b00020" }}>
@@ -26,6 +27,6 @@ export default async function NewProjectPage() {
       ) : (
         <NewProjectForm clientOrgs={clientOrgs} leads={leads} />
       )}
-    </main>
+    </Shell>
   );
 }

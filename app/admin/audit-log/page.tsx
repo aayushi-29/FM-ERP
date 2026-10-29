@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
+import { Shell } from "@/app/components/shell";
 
 const PAGE_SIZE = 50;
 
@@ -23,7 +24,7 @@ export default async function AuditLogPage({
 }: {
   searchParams: { actorId?: string; targetType?: string; targetId?: string; action?: string; page?: string };
 }) {
-  await requireRoleOrRedirect(["ADMIN"]);
+  const user = await requireRoleOrRedirect(["ADMIN"]);
 
   const actorId = searchParams.actorId || undefined;
   const targetType = searchParams.targetType || undefined;
@@ -53,7 +54,7 @@ export default async function AuditLogPage({
   const filterParams = { actorId, targetType, targetId, action };
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 1000 }}>
+    <Shell user={user}>
       <h1>Audit log</h1>
       <p style={{ color: "#555" }}>
         Admin-only, read-only — every sensitive action in the app writes here and nothing ever edits or deletes
@@ -124,6 +125,6 @@ export default async function AuditLogPage({
           <span style={{ color: "#bbb" }}>Older &rarr;</span>
         )}
       </div>
-    </main>
+    </Shell>
   );
 }

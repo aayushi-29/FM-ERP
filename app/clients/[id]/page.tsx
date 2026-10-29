@@ -4,6 +4,7 @@ import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { assertClientOrgAccessOrRedirect } from "@/lib/crm/scope";
 import { NewContactForm } from "./new-contact-form";
+import { Shell } from "@/app/components/shell";
 
 export default async function ClientDetailPage({ params }: { params: { id: string } }) {
   const user = await requireRoleOrRedirect(["ADMIN", "PROJECT_LEAD"]);
@@ -27,7 +28,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
   };
 
   return (
-    <main>
+    <Shell user={user}>
       <div className="fm-page-head">
         <h1>{client.name}</h1>
       </div>
@@ -73,6 +74,6 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
           </div>
         </div>
       </div>
-    </main>
+    </Shell>
   );
 }

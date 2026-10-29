@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
+import { Shell } from "@/app/components/shell";
 
 export default async function FormulationDetailPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();
@@ -24,7 +25,7 @@ export default async function FormulationDetailPage({ params }: { params: { id: 
   await assertProjectAccessOrRedirect(user, formulation.product.projectId);
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 700 }}>
+    <Shell user={user}>
       <p style={{ marginBottom: 4 }}>
         <Link href={`/products/${formulation.product.id}`}>← {formulation.product.name}</Link>
       </p>
@@ -42,6 +43,6 @@ export default async function FormulationDetailPage({ params }: { params: { id: 
           </li>
         ))}
       </ul>
-    </main>
+    </Shell>
   );
 }

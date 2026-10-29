@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { LeadStatusActions } from "./lead-status-actions";
 import { ConvertLeadForm } from "./convert-lead-form";
 import { ProposalSection } from "./proposal-section";
+import { Shell } from "@/app/components/shell";
 
 export default async function LeadDetailPage({ params }: { params: { id: string } }) {
   const user = await requireRoleOrRedirect(["ADMIN", "PROJECT_LEAD"]);
@@ -43,7 +44,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
   const hasAcceptedProposal = proposals.some((p) => p.status === "ACCEPTED");
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 700 }}>
+    <Shell user={user}>
       <p>
         <Link href="/leads">&larr; Leads</Link>
       </p>
@@ -103,6 +104,6 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
           ) : null}
         </>
       )}
-    </main>
+    </Shell>
   );
 }

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { canUploadType, canManageVisibility } from "@/lib/documents/scope";
 import { UploadDocumentForm } from "./upload-document-form";
 import { DocumentRow } from "./document-row";
+import { Shell } from "@/app/components/shell";
 
 export default async function DocumentsPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();
@@ -37,7 +38,7 @@ export default async function DocumentsPage({ params }: { params: { id: string }
   const canManage = canManageVisibility(user.role);
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 760 }}>
+    <Shell user={user}>
       <p style={{ marginBottom: 4 }}>
         <Link href={`/projects/${project.id}`}>← {project.name}</Link>
       </p>
@@ -78,6 +79,6 @@ export default async function DocumentsPage({ params }: { params: { id: string }
           <UploadDocumentForm projectId={project.id} allowedTypes={uploadableTypes} canSetVisibility={canManage} />
         </div>
       ) : null}
-    </main>
+    </Shell>
   );
 }

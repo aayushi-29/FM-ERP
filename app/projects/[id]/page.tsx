@@ -9,6 +9,7 @@ import { MilestoneList } from "./milestone-list";
 import { NewMilestoneForm } from "./new-milestone-form";
 import { AssignForm } from "./assign-form";
 import { HandoverControl } from "./handover-control";
+import { Shell } from "@/app/components/shell";
 
 export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();
@@ -56,7 +57,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
     };
 
     return (
-      <main>
+      <Shell user={user}>
         <div className="fm-page-head">
           <h1>{project.name}</h1>
           <p className="fm-muted">
@@ -131,7 +132,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
             <Link href={`/projects/${project.id}/costing`}>Open invoices →</Link>
           </div>
         </div>
-      </main>
+      </Shell>
     );
   }
 
@@ -166,7 +167,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
     : [];
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 800 }}>
+    <Shell user={user}>
       <h1>{project.name}</h1>
       <p style={{ color: "#555" }}>
         {project.clientOrg.name} · {project.status}
@@ -270,6 +271,6 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           ✓ Final product handed over — this project is complete.
         </p>
       ) : null}
-    </main>
+    </Shell>
   );
 }

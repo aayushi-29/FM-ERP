@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { isExecutionUnlocked } from "@/lib/projects/execution-gate";
 import { NewProductForm } from "./new-product-form";
+import { Shell } from "@/app/components/shell";
 
 // Client is excluded from this page entirely (baseline §4: Products/
 // Formulations have no Client row at all — their only NPD visibility is a
@@ -31,7 +32,7 @@ export default async function ProductsPage({ params }: { params: { id: string } 
   const canCreate = (user.role === "ADMIN" || user.role === "NPD_EXECUTIVE") && executionUnlocked;
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 700 }}>
+    <Shell user={user}>
       <p style={{ marginBottom: 4 }}>
         <Link href={`/projects/${project.id}`}>← {project.name}</Link>
       </p>
@@ -63,6 +64,6 @@ export default async function ProductsPage({ params }: { params: { id: string } 
           <NewProductForm projectId={project.id} />
         </div>
       ) : null}
-    </main>
+    </Shell>
   );
 }

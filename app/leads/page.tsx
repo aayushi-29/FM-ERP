@@ -2,18 +2,19 @@ import Link from "next/link";
 import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { NewLeadForm } from "./new-lead-form";
+import { Shell } from "@/app/components/shell";
 
 // Admin + Project Lead, both full access to the whole pipeline — see the
 // interpretation flag in app/api/leads/route.ts for why there's no
 // per-lead scoping here (a Lead predates any ClientOrganization/Project
 // to scope by). Internal tooling, not the final themed UI.
 export default async function LeadsPage() {
-  await requireRoleOrRedirect(["ADMIN", "PROJECT_LEAD"]);
+  const user = await requireRoleOrRedirect(["ADMIN", "PROJECT_LEAD"]);
 
   const leads = await prisma.lead.findMany({ orderBy: { createdAt: "desc" } });
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 800 }}>
+    <Shell user={user}>
       <h1>Leads</h1>
       <p style={{ color: "#555" }}>
         The sales pipeline, before a company becomes a client organization. Converting a lead creates its
@@ -52,6 +53,6 @@ export default async function LeadsPage() {
 
       <h2 style={{ marginTop: 32, fontSize: "1.1rem" }}>Add a lead</h2>
       <NewLeadForm />
-    </main>
+    </Shell>
   );
 }

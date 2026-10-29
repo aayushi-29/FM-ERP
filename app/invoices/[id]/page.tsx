@@ -6,6 +6,7 @@ import { canReadInvoices, canManageInvoices, isInvoiceVisibleToClient } from "@/
 import { InvoiceActions } from "./invoice-actions";
 import { ClaimPaymentForm } from "./claim-payment-form";
 import { PendingClaimActions } from "./pending-claim-actions";
+import { Shell } from "@/app/components/shell";
 
 export default async function InvoiceDetailPage({ params }: { params: { id: string } }) {
   const user = await requireUserOrRedirect();
@@ -31,7 +32,7 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
   const balance = Number(invoice.amount) - totalCredited - totalPaid;
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 640 }}>
+    <Shell user={user}>
       <p style={{ marginBottom: 4 }}>
         <Link href={`/projects/${invoice.projectId}/costing`}>← Costing &amp; Invoicing</Link>
       </p>
@@ -151,6 +152,6 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
           payments={invoice.payments.map((p) => ({ id: p.id, verified: !!p.verifiedById }))}
         />
       ) : null}
-    </main>
+    </Shell>
   );
 }
