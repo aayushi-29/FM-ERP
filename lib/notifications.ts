@@ -33,17 +33,46 @@ async function resolveClientRecipientIds(projectId: string, db: DbClient): Promi
   return clientUsers.map((u) => u.id);
 }
 
+// 29 Oct 2026 (fourth pass): confidentiality fix, confirmed with the
+// user — "the notification should go to the relatable person only, not to
+// everyone; a client payment should go to admin". "company" (below)
+// resolves to every project member regardless of role, including an NPD
+// Executive assigned to the project — but NPD Executive "has no access" to
+// Costing/Invoices at all (README's permission matrix). Routing a payment
+// claim or invoice notification through "company" was therefore handing
+// financial detail (amounts, claim status) to a role with no read access
+// to that data. "finance" is Admins + the project's Lead only — the two
+// roles that can actually read/act on payments — never NPD Executive.
+async function resolveFinanceRecipientIds(projectId: string, db: DbClient): Promise<string[]> {
+  const [admins, project] = await Promise.all([
+    db.user.findMany({ where: { role: "ADMIN", active: true }, select: { id: true } }),
+    db.project.findUnique({ where: { id: projectId }, select: { leadId: true } }),
+  ]);
+  const ids = new Set<string>(admins.map((u: { id: string }) => u.id));
+  if (project?.leadId) ids.add(project.leadId);
+  return Array.from(ids);
+}
+
 // Writes one Notification row per resolved recipient. `audience` picks who
-// gets it: "company" (Admins + the assigned Project Lead/NPD Executives),
-// "client" (active Client users in the project's org), or "both" — the
-// default for a payment event, since the user asked for notifications on
-// "client and company both". Pass `db` as a transaction client so these
-// commit atomically with the event they describe, same convention as
-// logAudit/logProjectActivity.
+// gets it:
+//   "company"         — Admins + the assigned Project Lead/NPD Executives.
+//                        For operational events everyone on the project
+//                        legitimately needs to know about (execution
+//                        unlocked, a rework requested) — never for anything
+//                        that reveals a financial figure to NPD Executive.
+//   "client"           — active Client users in the project's org.
+//   "both"              — company + client.
+//   "finance"           — Admin + Project Lead only (see
+//                         resolveFinanceRecipientIds above) — payment
+//                         claims, invoice amounts, anything NPD Executive
+//                         has no read access to.
+//   "financeAndClient"  — finance + client.
+// Pass `db` as a transaction client so these commit atomically with the
+// event they describe, same convention as logAudit/logProjectActivity.
 export async function notify(
   entry: {
     projectId: string;
-    audience: "company" | "client" | "both";
+    audience: "company" | "client" | "both" | "finance" | "financeAndClient";
     type: string;
     message: string;
     link?: string;
@@ -55,7 +84,10 @@ export async function notify(
   if (entry.audience === "company" || entry.audience === "both") {
     for (const id of await resolveCompanyRecipientIds(entry.projectId, db)) recipientIds.add(id);
   }
-  if (entry.audience === "client" || entry.audience === "both") {
+  if (entry.audience === "finance" || entry.audience === "financeAndClient") {
+    for (const id of await resolveFinanceRecipientIds(entry.projectId, db)) recipientIds.add(id);
+  }
+  if (entry.audience === "client" || entry.audience === "both" || entry.audience === "financeAndClient") {
     for (const id of await resolveClientRecipientIds(entry.projectId, db)) recipientIds.add(id);
   }
 
@@ -65,6 +97,32 @@ export async function notify(
     data: Array.from(recipientIds).map((recipientId) => ({
       recipientId,
       projectId: entry.projectId,
+      type: entry.type,
+      message: entry.message,
+      link: entry.link,
+    })),
+  });
+}
+
+// 29 Oct 2026 (fourth pass): direct, explicit recipients — for the new
+// materials-approval workflow, which isn't scoped to a Project at all (a
+// RawMaterial is a company-wide catalog entry, same reason
+// notifyCompanyWide below exists). Used both to tell Admin/Project Lead a
+// material is awaiting their review, and to tell the NPD Executive who
+// submitted it what happened to it — a one- or two-person audience, not a
+// role-wide broadcast.
+export async function notifyUsers(
+  userIds: string[],
+  entry: { type: string; message: string; link?: string },
+  db: DbClient = prisma
+): Promise<void> {
+  const ids = Array.from(new Set(userIds));
+  if (ids.length === 0) return;
+
+  await db.notification.createMany({
+    data: ids.map((recipientId) => ({
+      recipientId,
+      projectId: null,
       type: entry.type,
       message: entry.message,
       link: entry.link,
@@ -91,6 +149,33 @@ export async function notifyCompanyWide(
 
   await db.notification.createMany({
     data: recipients.map((u) => ({
+      recipientId: u.id,
+      projectId: null,
+      type: entry.type,
+      message: entry.message,
+      link: entry.link,
+    })),
+  });
+}
+
+// 29 Oct 2026 (fourth pass): same shape as notifyCompanyWide above, but for
+// an arbitrary role list — used by the materials-approval workflow to
+// reach Admin + Project Lead (the two roles that can approve/reject a
+// material) without also reaching every NPD Executive, which
+// notifyCompanyWide's hardcoded ADMIN/NPD_EXECUTIVE pair would do here.
+export async function notifyRoleWide(
+  roles: ("ADMIN" | "PROJECT_LEAD" | "NPD_EXECUTIVE" | "CLIENT")[],
+  entry: { type: string; message: string; link?: string },
+  db: DbClient = prisma
+): Promise<void> {
+  const recipients = await db.user.findMany({
+    where: { role: { in: roles }, active: true },
+    select: { id: true },
+  });
+  if (recipients.length === 0) return;
+
+  await db.notification.createMany({
+    data: recipients.map((u: { id: string }) => ({
       recipientId: u.id,
       projectId: null,
       type: entry.type,

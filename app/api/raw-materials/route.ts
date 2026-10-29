@@ -6,6 +6,7 @@ import { requireUser, ForbiddenError } from "@/lib/auth/rbac";
 import { canReadInventory, canManageInventory } from "@/lib/inventory/scope";
 import { RAW_MATERIAL_UNITS } from "@/lib/inventory/units";
 import { logAudit } from "@/lib/audit";
+import { notifyRoleWide } from "@/lib/notifications";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse } from "@/lib/api/respond";
 
@@ -32,6 +33,11 @@ export async function GET() {
           orderBy: { recordedAt: "desc" },
           take: 5,
         },
+        // 29 Oct 2026 (fourth pass): materials-approval workflow.
+        approvalStatus: true,
+        rejectionReason: true,
+        createdBy: { select: { id: true, name: true } },
+        approvedBy: { select: { id: true, name: true } },
       },
       orderBy: { name: "asc" },
     });
@@ -73,6 +79,13 @@ export async function POST(request: Request) {
       }
     }
 
+    // 29 Oct 2026 (fourth pass): materials-approval workflow, confirmed
+    // with the user — an NPD Executive's submission starts PENDING and is
+    // blocked from use (see the ingredient-lines route) until a Project
+    // Lead or Admin approves it. Admin creating one directly is its own
+    // sign-off — there's no queue to put it in.
+    const isNpdSubmission = actor.role === "NPD_EXECUTIVE";
+
     const rawMaterial = await prisma.$transaction(async (tx) => {
       const created = await tx.rawMaterial.create({
         data: {
@@ -81,12 +94,33 @@ export async function POST(request: Request) {
           defaultUnit: input.defaultUnit,
           defaultCostPerUnit: input.defaultCostPerUnit ? new Decimal(input.defaultCostPerUnit) : undefined,
           reorderThreshold: input.reorderThreshold ? new Decimal(input.reorderThreshold) : undefined,
+          createdById: actor.id,
+          approvalStatus: isNpdSubmission ? "PENDING" : "APPROVED",
+          approvedById: isNpdSubmission ? undefined : actor.id,
+          approvedAt: isNpdSubmission ? undefined : new Date(),
         },
       });
       await logAudit(
-        { actorId: actor.id, action: "raw_material.created", targetType: "RawMaterial", targetId: created.id, after: { name: created.name } },
+        {
+          actorId: actor.id,
+          action: "raw_material.created",
+          targetType: "RawMaterial",
+          targetId: created.id,
+          after: { name: created.name, approvalStatus: created.approvalStatus },
+        },
         tx
       );
+      if (isNpdSubmission) {
+        await notifyRoleWide(
+          ["ADMIN", "PROJECT_LEAD"],
+          {
+            type: "raw_material.pending_approval",
+            message: `${actor.name} added a raw material — "${created.name}" — awaiting your approval.`,
+            link: "/raw-materials",
+          },
+          tx
+        );
+      }
       return created;
     });
 

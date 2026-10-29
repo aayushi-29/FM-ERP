@@ -17,3 +17,14 @@ export function canManageInventory(role: Role): boolean {
 export function canReadInventory(role: Role): boolean {
   return role === "ADMIN" || role === "NPD_EXECUTIVE" || role === "PROJECT_LEAD";
 }
+
+// 29 Oct 2026 (fourth pass): materials-approval workflow, confirmed with
+// the user — "give lead also the access to verify and accept" what an NPD
+// Executive adds. This does NOT widen canManageInventory above (Project
+// Lead still can't create/edit the catalog day-to-day) — it's a narrow,
+// separate permission: approve or reject a material an NPD Executive
+// submitted. Admin keeps it too, same as every other approval gate in the
+// app ("Admin: override — any status, any time").
+export function canApproveMaterials(role: Role): boolean {
+  return role === "ADMIN" || role === "PROJECT_LEAD";
+}

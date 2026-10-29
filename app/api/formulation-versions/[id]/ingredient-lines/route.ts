@@ -5,7 +5,7 @@ import { requireUser, assertProjectAccess, ForbiddenError } from "@/lib/auth/rba
 import { getProjectIdForFormulationVersion, assertFound } from "@/lib/npd/scope";
 import { assertExecutionUnlocked } from "@/lib/projects/execution-gate";
 import { isSameOrigin } from "@/lib/security/origin";
-import { errorResponse } from "@/lib/api/respond";
+import { errorResponse, ValidationError } from "@/lib/api/respond";
 
 // Decimal fields come in as strings, never JS numbers — Prisma accepts a
 // decimal string directly and this avoids ever routing a quantity through
@@ -51,6 +51,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
     if (input.rawMaterialId) {
       const material = await prisma.rawMaterial.findUnique({ where: { id: input.rawMaterialId } });
       if (!material) return NextResponse.json({ error: "rawMaterialId does not exist" }, { status: 400 });
+      // 29 Oct 2026 (fourth pass): materials-approval workflow, confirmed
+      // with the user — a material an NPD Executive submitted can't be
+      // picked into a formulation until a Project Lead or Admin approves
+      // it. The picker on the page already only lists APPROVED materials
+      // (app/formulation-versions/[id]/page.tsx), so this is the real
+      // enforcement, not just a UI nicety.
+      if (material.approvalStatus !== "APPROVED") {
+        throw new ValidationError("This material hasn't been approved yet — ask a Project Lead or Admin to review it first");
+      }
     }
 
     const line = await prisma.ingredientLine.create({

@@ -79,6 +79,12 @@ model User {
   paymentClaimsSubmitted PaymentClaim[] @relation("PaymentClaimSubmitter")
   paymentClaimsResponded PaymentClaim[] @relation("PaymentClaimResponder")
 
+  // 29 Oct 2026 (fourth pass): materials-approval workflow — confirmed with
+  // the user. Raw Materials only (not Suppliers); an NPD Executive's
+  // submission needs a Project Lead's or Admin's sign-off.
+  rawMaterialsCreated  RawMaterial[] @relation("RawMaterialCreatedBy")
+  rawMaterialsApproved RawMaterial[] @relation("RawMaterialApprovedBy")
+
   @@index([clientOrgId])
 }
 
@@ -817,11 +823,35 @@ model RawMaterial {
   // Null = no alerting configured for this material.
   reorderThreshold Decimal? @db.Decimal(14, 4)
 
+  // 29 Oct 2026 (fourth pass): materials-approval workflow — confirmed
+  // with the user. An NPD Executive can still add a material, but it
+  // starts PENDING and can't be picked into a formulation's ingredient
+  // lines (app/api/formulation-versions/[id]/ingredient-lines/route.ts)
+  // until a Project Lead or Admin approves it. When Admin or Project Lead
+  // adds a material directly, the create route sets it APPROVED (and
+  // self-attributes the approval) — their own authority is the sign-off,
+  // there's nothing to queue. Default APPROVED so this column doesn't
+  // retroactively lock out every pre-existing row once the migration runs.
+  approvalStatus  MaterialApprovalStatus @default(APPROVED)
+  createdById     String?
+  createdBy       User?     @relation("RawMaterialCreatedBy", fields: [createdById], references: [id])
+  approvedById    String?
+  approvedBy      User?     @relation("RawMaterialApprovedBy", fields: [approvedById], references: [id])
+  approvedAt      DateTime?
+  rejectionReason String?
+
   ingredientLines IngredientLine[]
   attachments     RawMaterialAttachment[]
   stockMovements  StockMovement[]
 
   @@index([supplierId])
+  @@index([approvalStatus])
+}
+
+enum MaterialApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 // One row per stock change (a delivery received, consumption recorded,

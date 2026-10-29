@@ -127,10 +127,17 @@ export async function POST(request: Request, { params }: { params: { id: string 
         tx
       );
       if (input.paymentStage) {
+        // 29 Oct 2026 (fourth pass): confidentiality fix, confirmed with
+        // the user — this message carries the invoice amount, which an
+        // NPD Executive has no read access to (README's permission
+        // matrix: "NPD Executive has no access" to Costing/Invoices).
+        // "both" used to route it through "company", which includes any
+        // NPD Executive assigned to the project; "financeAndClient"
+        // reaches Admin + Project Lead + the Client, never NPD Executive.
         await notify(
           {
             projectId: params.id,
-            audience: "both",
+            audience: "financeAndClient",
             type: "invoice.staged",
             message: `Invoice ${invoiceNumber} raised for the ${PAYMENT_STAGE_LABEL[input.paymentStage]} (${amount} ${input.currency}).`,
             link: `/projects/${params.id}/costing`,

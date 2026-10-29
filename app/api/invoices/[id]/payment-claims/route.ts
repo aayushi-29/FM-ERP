@@ -69,10 +69,16 @@ export async function POST(request: Request, { params }: { params: { id: string 
         },
         tx
       );
+      // 29 Oct 2026 (fourth pass): confidentiality fix, confirmed with the
+      // user — a payment claim (bank details, amount, reference number) is
+      // financial data an NPD Executive has no read access to, so this
+      // can't go through "company" (which includes any NPD Executive
+      // assigned to the project). "finance" reaches only Admin + the
+      // Project Lead — the two roles that can actually act on it.
       await notify(
         {
           projectId: invoice.projectId,
-          audience: "company",
+          audience: "finance",
           type: "payment_claim.submitted",
           message: `A payment claim of ${input.amount} ${invoice.currency} was submitted on ${invoice.invoiceNumber}.`,
           link: `/invoices/${invoice.id}`,

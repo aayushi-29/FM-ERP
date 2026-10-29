@@ -2,12 +2,13 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
-import { canManageInventory } from "@/lib/inventory/scope";
+import { canManageInventory, canApproveMaterials } from "@/lib/inventory/scope";
 import { NewSupplierForm } from "./new-supplier-form";
 import { NewRawMaterialForm } from "./new-raw-material-form";
 import { CoaUploadForm } from "./coa-upload-form";
 import { StockMovementForm } from "./stock-movement-form";
 import { SetStockForm } from "./set-stock-form";
+import { MaterialApprovalActions } from "./material-approval-actions";
 import { Shell } from "@/app/components/shell";
 
 export const metadata: Metadata = { title: "Raw Materials" };
@@ -26,6 +27,8 @@ export const metadata: Metadata = { title: "Raw Materials" };
 export default async function RawMaterialsPage() {
   const user = await requireRoleOrRedirect(["ADMIN", "PROJECT_LEAD", "NPD_EXECUTIVE"]);
   const canManage = canManageInventory(user.role);
+  // 29 Oct 2026 (fourth pass): materials-approval workflow.
+  const canApprove = canApproveMaterials(user.role);
 
   const [suppliers, rawMaterials] = await Promise.all([
     prisma.supplier.findMany({
@@ -51,6 +54,10 @@ export default async function RawMaterialsPage() {
           select: { id: true, fileName: true, uploadedAt: true, uploadedBy: { select: { name: true } } },
           orderBy: { uploadedAt: "desc" },
         },
+        // 29 Oct 2026 (fourth pass): materials-approval workflow.
+        approvalStatus: true,
+        rejectionReason: true,
+        createdBy: { select: { id: true, name: true } },
       },
       orderBy: { name: "asc" },
     }),
@@ -59,6 +66,13 @@ export default async function RawMaterialsPage() {
   const lowStockCount = rawMaterials.filter(
     (m) => m.reorderThreshold != null && Number(m.stockOnHand) <= Number(m.reorderThreshold)
   ).length;
+  // 29 Oct 2026 (fourth pass): materials-approval workflow.
+  const pendingCount = rawMaterials.filter((m: (typeof rawMaterials)[number]) => m.approvalStatus === "PENDING").length;
+  const statusBadgeClass: Record<string, string> = {
+    PENDING: "fm-badge fm-badge-gold",
+    APPROVED: "fm-badge fm-badge-good",
+    REJECTED: "fm-badge fm-badge-warn",
+  };
 
   return (
     <Shell user={user}>
@@ -75,8 +89,13 @@ export default async function RawMaterialsPage() {
         </p>
       </div>
       {lowStockCount > 0 ? (
-        <p className="fm-badge fm-badge-warn" style={{ marginBottom: 16 }} role="status">
+        <p className="fm-badge fm-badge-warn" style={{ marginBottom: 12 }} role="status">
           ⚠ {lowStockCount} material{lowStockCount === 1 ? "" : "s"} running low — check the Low stock badges below.
+        </p>
+      ) : null}
+      {canApprove && pendingCount > 0 ? (
+        <p className="fm-badge fm-badge-gold" style={{ marginBottom: 16 }} role="status">
+          {pendingCount} material{pendingCount === 1 ? "" : "s"} awaiting your approval — see the Status column below.
         </p>
       ) : null}
 
@@ -118,6 +137,7 @@ export default async function RawMaterialsPage() {
                   <th>Supplier</th>
                   <th>Unit</th>
                   <th>Price per unit</th>
+                  <th>Status</th>
                   <th>Stock on hand</th>
                   <th>COA images</th>
                 </tr>
@@ -131,6 +151,16 @@ export default async function RawMaterialsPage() {
                       <td>{m.supplier?.name ?? "—"}</td>
                       <td>{m.defaultUnit}</td>
                       <td>{m.defaultCostPerUnit ? `₹${m.defaultCostPerUnit.toString()}` : "—"}</td>
+                      <td>
+                        <span className={statusBadgeClass[m.approvalStatus] ?? "fm-badge"}>{m.approvalStatus}</span>
+                        {m.createdBy ? <div className="fm-li-meta">added by {m.createdBy.name}</div> : null}
+                        {m.approvalStatus === "REJECTED" && m.rejectionReason ? (
+                          <div className="fm-li-meta">{m.rejectionReason}</div>
+                        ) : null}
+                        {canApprove && m.approvalStatus !== "APPROVED" ? (
+                          <MaterialApprovalActions materialId={m.id} status={m.approvalStatus} />
+                        ) : null}
+                      </td>
                       <td>
                         <div>
                           <strong style={{ fontSize: "1.05rem" }}>{m.stockOnHand.toString()}</strong>
@@ -177,6 +207,12 @@ export default async function RawMaterialsPage() {
         )}
         {canManage ? (
           <div style={{ marginTop: 14 }}>
+            {user.role === "NPD_EXECUTIVE" ? (
+              <p className="fm-li-meta" style={{ marginBottom: 8 }}>
+                A material you add here starts as Pending — a Project Lead or Admin needs to approve it before it can
+                be used in a formulation.
+              </p>
+            ) : null}
             <NewRawMaterialForm suppliers={suppliers.map((s) => ({ id: s.id, name: s.name }))} />
           </div>
         ) : null}

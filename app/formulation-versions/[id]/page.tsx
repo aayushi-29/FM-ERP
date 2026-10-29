@@ -124,8 +124,13 @@ export default async function FormulationVersionPage({ params }: { params: { id:
   // catalog an ingredient line is picked from (lib/inventory/scope.ts's
   // canReadInventory governs the /raw-materials page too; NPD Executive,
   // who actually edits ingredient lines, always passes this check).
+  // 29 Oct 2026 (fourth pass): materials-approval workflow — a material an
+  // NPD Executive submitted can't be picked here until a Project Lead or
+  // Admin approves it (enforced again, server-side, in the ingredient-lines
+  // POST route — this filter is what keeps it out of the dropdown at all).
   const rawMaterials = canReadInventory(user.role)
     ? await prisma.rawMaterial.findMany({
+        where: { approvalStatus: "APPROVED" },
         select: { id: true, name: true, defaultUnit: true, supplier: { select: { name: true } } },
         orderBy: { name: "asc" },
       })
