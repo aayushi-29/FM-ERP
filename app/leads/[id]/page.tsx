@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { requireRoleOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { LeadStatusActions } from "./lead-status-actions";
+import { LeadNotesForm } from "./lead-notes-form";
 import { ConvertLeadForm } from "./convert-lead-form";
 import { ProposalSection } from "./proposal-section";
 import { Shell } from "@/app/components/shell";
@@ -63,7 +64,8 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
       <p>
         Status: <strong>{lead.status}</strong>
       </p>
-      {lead.notes ? <p style={{ color: "#555", whiteSpace: "pre-wrap" }}>{lead.notes}</p> : null}
+      <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Description</h2>
+      <LeadNotesForm id={lead.id} notes={lead.notes} />
 
       {lead.status === "CONVERTED" ? (
         <p style={{ marginTop: 16 }}>

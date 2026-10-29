@@ -72,16 +72,36 @@ async function AdminSection() {
   return (
     <>
       <div className="fm-stat-row">
-        <Stat label="Active projects" value={d.activeProjects} />
-        <Stat label="Overdue tasks" value={d.overdueTasks.length} warn={d.overdueTasks.length > 0} />
-        <Stat label="Overdue milestones" value={d.overdueMilestones.length} warn={d.overdueMilestones.length > 0} />
-        <Stat label="Pending approvals" value={d.pendingApprovals.length} warn={d.pendingApprovals.length > 0} />
-        <Stat label="Overdue invoices" value={d.overdueInvoices.length} warn={d.overdueInvoices.length > 0} />
+        <Stat label="Active projects" value={d.activeProjects} href="/projects" />
+        <Stat
+          label="Overdue tasks"
+          value={d.overdueTasks.length}
+          warn={d.overdueTasks.length > 0}
+          href="#overdue-tasks"
+        />
+        <Stat
+          label="Overdue milestones"
+          value={d.overdueMilestones.length}
+          warn={d.overdueMilestones.length > 0}
+          href="#overdue-milestones"
+        />
+        <Stat
+          label="Pending approvals"
+          value={d.pendingApprovals.length}
+          warn={d.pendingApprovals.length > 0}
+          href="#pending-approvals"
+        />
+        <Stat
+          label="Overdue invoices"
+          value={d.overdueInvoices.length}
+          warn={d.overdueInvoices.length > 0}
+          href="#overdue-invoices"
+        />
         <Stat label="Unverified payments" value={d.unverifiedPayments} warn={d.unverifiedPayments > 0} />
       </div>
 
       <div className="fm-section-grid">
-        <Section title="Overdue tasks">
+        <Section id="overdue-tasks" title="Overdue tasks">
           {d.overdueTasks.length === 0 ? (
             <Empty />
           ) : (
@@ -97,7 +117,7 @@ async function AdminSection() {
           )}
         </Section>
 
-        <Section title="Overdue milestones">
+        <Section id="overdue-milestones" title="Overdue milestones">
           {d.overdueMilestones.length === 0 ? (
             <Empty />
           ) : (
@@ -112,7 +132,7 @@ async function AdminSection() {
           )}
         </Section>
 
-        <Section title="Pending formulation approvals">
+        <Section id="pending-approvals" title="Pending formulation approvals">
           {d.pendingApprovals.length === 0 ? (
             <Empty />
           ) : (
@@ -130,7 +150,7 @@ async function AdminSection() {
           )}
         </Section>
 
-        <Section title="Overdue invoices">
+        <Section id="overdue-invoices" title="Overdue invoices">
           {d.overdueInvoices.length === 0 ? (
             <Empty />
           ) : (
@@ -169,17 +189,32 @@ async function ProjectLeadSection({ user }: { user: SessionUser }) {
   return (
     <>
       <div className="fm-stat-row">
-        <Stat label="Your projects" value={d.projectIds.length} />
-        <Stat label="Overdue tasks" value={d.overdueTasks.length} warn={d.overdueTasks.length > 0} />
-        <Stat label="Overdue milestones" value={d.overdueMilestones.length} warn={d.overdueMilestones.length > 0} />
-        <Stat label="Pending your approval" value={d.pendingApprovals.length} warn={d.pendingApprovals.length > 0} />
+        <Stat label="Your projects" value={d.projectIds.length} href="#your-active-projects" />
+        <Stat
+          label="Overdue tasks"
+          value={d.overdueTasks.length}
+          warn={d.overdueTasks.length > 0}
+          href="#overdue-tasks"
+        />
+        <Stat
+          label="Overdue milestones"
+          value={d.overdueMilestones.length}
+          warn={d.overdueMilestones.length > 0}
+          href="#overdue-milestones"
+        />
+        <Stat
+          label="Pending your approval"
+          value={d.pendingApprovals.length}
+          warn={d.pendingApprovals.length > 0}
+          href="#pending-your-approval"
+        />
       </div>
 
       <div className="fm-section-grid">
         {/* 29 Oct 2026 (second pass), item #6: active work, not just
             overdue/exception items — so a Project Lead with nothing
             overdue still sees what's actually in flight. */}
-        <Section title="Your active projects">
+        <Section id="your-active-projects" title="Your active projects">
           {d.activeProjects.length === 0 ? (
             <Empty />
           ) : (
@@ -215,7 +250,7 @@ async function ProjectLeadSection({ user }: { user: SessionUser }) {
           )}
         </Section>
 
-        <Section title="Overdue tasks">
+        <Section id="overdue-tasks" title="Overdue tasks">
           {d.overdueTasks.length === 0 ? (
             <Empty />
           ) : (
@@ -231,7 +266,7 @@ async function ProjectLeadSection({ user }: { user: SessionUser }) {
           )}
         </Section>
 
-        <Section title="Overdue milestones">
+        <Section id="overdue-milestones" title="Overdue milestones">
           {d.overdueMilestones.length === 0 ? (
             <Empty />
           ) : (
@@ -246,7 +281,7 @@ async function ProjectLeadSection({ user }: { user: SessionUser }) {
           )}
         </Section>
 
-        <Section title="Formulations pending your approval">
+        <Section id="pending-your-approval" title="Formulations pending your approval">
           {d.pendingApprovals.length === 0 ? (
             <Empty />
           ) : (
@@ -293,14 +328,24 @@ async function NpdExecutiveSection({ user }: { user: SessionUser }) {
   return (
     <>
       <div className="fm-stat-row">
-        <Stat label="Your open tasks" value={d.myTasks.length} warn={d.myTasks.length > 0} />
-        <Stat label="Drafts to submit" value={d.draftVersions.length} />
-        <Stat label="Rejected — needs revision" value={d.rejectedVersions.length} warn={d.rejectedVersions.length > 0} />
-        <Stat label="Open trials" value={d.myTrials.length} />
+        <Stat
+          label="Your open tasks"
+          value={d.myTasks.length}
+          warn={d.myTasks.length > 0}
+          href="#your-open-tasks"
+        />
+        <Stat label="Drafts to submit" value={d.draftVersions.length} href="#draft-formulations" />
+        <Stat
+          label="Rejected — needs revision"
+          value={d.rejectedVersions.length}
+          warn={d.rejectedVersions.length > 0}
+          href="#rejected-needs-revision"
+        />
+        <Stat label="Open trials" value={d.myTrials.length} href="#open-trials" />
       </div>
 
       <div className="fm-section-grid">
-        <Section title="Your open tasks">
+        <Section id="your-open-tasks" title="Your open tasks">
           {d.myTasks.length === 0 ? (
             <Empty />
           ) : (
@@ -315,7 +360,7 @@ async function NpdExecutiveSection({ user }: { user: SessionUser }) {
           )}
         </Section>
 
-        <Section title="Draft formulations (not yet submitted)">
+        <Section id="draft-formulations" title="Draft formulations (not yet submitted)">
           {d.draftVersions.length === 0 ? (
             <Empty />
           ) : (
@@ -332,7 +377,7 @@ async function NpdExecutiveSection({ user }: { user: SessionUser }) {
           )}
         </Section>
 
-        <Section title="Rejected — needs revision">
+        <Section id="rejected-needs-revision" title="Rejected — needs revision">
           {d.rejectedVersions.length === 0 ? (
             <Empty />
           ) : (
@@ -350,7 +395,7 @@ async function NpdExecutiveSection({ user }: { user: SessionUser }) {
           )}
         </Section>
 
-        <Section title="Open trials">
+        <Section id="open-trials" title="Open trials">
           {d.myTrials.length === 0 ? (
             <Empty />
           ) : (
@@ -451,20 +496,39 @@ async function ClientSection({ user }: { user: SessionUser }) {
   );
 }
 
-function Stat({ label, value, warn }: { label: string; value: number; warn?: boolean }) {
-  return (
-    <div className={`glass glass-sm fm-stat${warn ? " fm-stat-warn" : ""}`}>
+// 29 Oct 2026 (fourth pass): confirmed with the user — a stat tile for
+// "active project[s]" or "active approval[s]" should navigate to the
+// specific place to take action, not just sit there as a number next to a
+// list of links. `href` is optional because not every stat has one obvious
+// destination (e.g. Admin's "Unverified payments" is a company-wide count
+// with no single list page — verification happens per-invoice) — those
+// stay plain, non-clickable tiles exactly as before.
+function Stat({ label, value, warn, href }: { label: string; value: number; warn?: boolean; href?: string }) {
+  const className = `glass glass-sm fm-stat${warn ? " fm-stat-warn" : ""}${href ? " fm-stat-link" : ""}`;
+  const content = (
+    <>
       <div className="fm-stat-value">
         <StatValue value={value} />
       </div>
       <div className="fm-stat-label">{label}</div>
-    </div>
+    </>
   );
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {content}
+      </Link>
+    );
+  }
+  return <div className={className}>{content}</div>;
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+// `id` lets a Stat tile above link straight to its matching Section via a
+// same-page anchor (e.g. "Pending approvals" → #pending-approvals) instead
+// of only being informational next to the list that already links out.
+function Section({ title, id, children }: { title: string; id?: string; children: React.ReactNode }) {
   return (
-    <div className="glass glass-sm glass-card fm-section">
+    <div id={id} className="glass glass-sm glass-card fm-section">
       <h3>{title}</h3>
       {children}
     </div>

@@ -1215,6 +1215,19 @@ main {
   color: var(--fm-danger);
 }
 
+/* 29 Oct 2026 (fourth pass): confirmed with the user — a stat tile for an
+   active project/approval count should navigate to that specific place to
+   take action, not just sit next to the list below it. Reuses the same
+   .fm-stat look (the shared rules above already apply to any element with
+   this class, div or a) — this just strips the browser's default anchor
+   styling and adds an explicit pointer cursor. */
+.fm-stat-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
 .fm-stat-label {
   font-size: 0.78rem;
   color: var(--fm-text-muted);

@@ -9,6 +9,11 @@ export function NewLeadForm() {
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  // 29 Oct 2026 (fourth pass): "in leads there should be a place to add
+  // description about the lead to understand in future" — confirmed the
+  // backend already accepts `notes` on creation (app/api/leads/route.ts's
+  // zod schema), so this is purely a new field on the existing form.
+  const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -25,6 +30,7 @@ export function NewLeadForm() {
           contactName,
           email: email || undefined,
           phone: phone || undefined,
+          notes: notes || undefined,
         }),
       });
       if (!res.ok) {
@@ -36,6 +42,7 @@ export function NewLeadForm() {
       setContactName("");
       setEmail("");
       setPhone("");
+      setNotes("");
       router.refresh();
     } catch {
       setError("Could not reach the server.");
@@ -72,6 +79,13 @@ export function NewLeadForm() {
         onChange={(e) => setPhone(e.target.value)}
         placeholder="Phone (optional)"
         style={{ padding: 6, flex: "1 1 140px" }}
+      />
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="Description / notes about this lead (optional)"
+        rows={2}
+        style={{ padding: 6, flex: "1 1 100%", resize: "vertical", fontFamily: "inherit" }}
       />
       <button type="submit" disabled={submitting}>
         {submitting ? "Adding…" : "Add lead"}
