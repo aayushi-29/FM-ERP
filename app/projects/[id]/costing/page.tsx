@@ -2,7 +2,13 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { requireUserOrRedirect, assertProjectAccessOrRedirect } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
-import { canReadCosting, canManageCosting, canManageInvoices, isInvoiceVisibleToClient } from "@/lib/costing/scope";
+import {
+  canReadCosting,
+  canManageCosting,
+  canReadInvoices,
+  canManageInvoices,
+  isInvoiceVisibleToClient,
+} from "@/lib/costing/scope";
 import { PAYMENT_STAGE_LABEL } from "@/lib/payments/stage";
 import { NewCostSheetForm } from "./new-cost-sheet-form";
 import { NewExpenseForm } from "./new-expense-form";
@@ -28,6 +34,15 @@ export default async function CostingPage({ params }: { params: { id: string } }
   if (!project) notFound();
 
   const canSeeCosting = canReadCosting(user.role);
+  // 29 Oct 2026 (fourth pass): confirmed with the user — Project Lead can
+  // see the production cost breakdown (materials, making charge, overhead
+  // on the Cost sheets above) but not what the client is actually being
+  // charged or has paid. This section previously queried and rendered
+  // Invoices for ANY role that could reach this page at all, with no gate
+  // of its own — that's what let the invoice amount through to a Project
+  // Lead. Now scoped the same way canReadInvoices gates the dedicated
+  // invoice routes/pages.
+  const canSeeInvoices = canReadInvoices(user.role);
 
   const [costSheets, expenses, invoicesRaw, formulationVersions] = await Promise.all([
     canSeeCosting
@@ -48,11 +63,13 @@ export default async function CostingPage({ params }: { params: { id: string } }
           orderBy: { incurredAt: "desc" },
         })
       : Promise.resolve([]),
-    prisma.invoice.findMany({
-      where: { projectId: params.id },
-      select: { id: true, invoiceNumber: true, milestoneLabel: true, paymentStage: true, amount: true, currency: true, status: true, dueDate: true },
-      orderBy: { createdAt: "desc" },
-    }),
+    canSeeInvoices
+      ? prisma.invoice.findMany({
+          where: { projectId: params.id },
+          select: { id: true, invoiceNumber: true, milestoneLabel: true, paymentStage: true, amount: true, currency: true, status: true, dueDate: true },
+          orderBy: { createdAt: "desc" },
+        })
+      : Promise.resolve([]),
     canSeeCosting
       ? prisma.formulationVersion.findMany({
           where: { formulation: { product: { projectId: params.id } } },
@@ -123,31 +140,35 @@ export default async function CostingPage({ params }: { params: { id: string } }
         </>
       ) : null}
 
-      <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Invoices</h2>
-      {user.role === "CLIENT" ? (
-        <p style={{ color: "#777", fontSize: ".85rem" }}>Showing invoices sent to your organization.</p>
-      ) : null}
-      {invoices.length === 0 ? (
-        <p style={{ color: "#777" }}>No invoices yet.</p>
-      ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {invoices.map((inv) => (
-            <li key={inv.id} style={{ padding: "6px 0", borderBottom: "1px solid #eee", fontSize: ".9rem" }}>
-              <Link href={`/invoices/${inv.id}`}>{inv.invoiceNumber}</Link>
-              <span style={{ color: "#777" }}>
-                {" · "}{inv.status} · {inv.amount.toString()} {inv.currency}
-                {inv.paymentStage ? ` · ${PAYMENT_STAGE_LABEL[inv.paymentStage]}` : ""}
-                {inv.milestoneLabel ? ` · ${inv.milestoneLabel}` : ""}
-                {inv.dueDate ? ` · due ${new Date(inv.dueDate).toLocaleDateString()}` : ""}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {canManageInvoices(user.role) ? (
-        <div style={{ marginTop: 10 }}>
-          <NewInvoiceForm projectId={project.id} />
-        </div>
+      {canSeeInvoices ? (
+        <>
+          <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Invoices</h2>
+          {user.role === "CLIENT" ? (
+            <p style={{ color: "#777", fontSize: ".85rem" }}>Showing invoices sent to your organization.</p>
+          ) : null}
+          {invoices.length === 0 ? (
+            <p style={{ color: "#777" }}>No invoices yet.</p>
+          ) : (
+            <ul style={{ listStyle: "none", padding: 0 }}>
+              {invoices.map((inv) => (
+                <li key={inv.id} style={{ padding: "6px 0", borderBottom: "1px solid #eee", fontSize: ".9rem" }}>
+                  <Link href={`/invoices/${inv.id}`}>{inv.invoiceNumber}</Link>
+                  <span style={{ color: "#777" }}>
+                    {" · "}{inv.status} · {inv.amount.toString()} {inv.currency}
+                    {inv.paymentStage ? ` · ${PAYMENT_STAGE_LABEL[inv.paymentStage]}` : ""}
+                    {inv.milestoneLabel ? ` · ${inv.milestoneLabel}` : ""}
+                    {inv.dueDate ? ` · due ${new Date(inv.dueDate).toLocaleDateString()}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {canManageInvoices(user.role) ? (
+            <div style={{ marginTop: 10 }}>
+              <NewInvoiceForm projectId={project.id} />
+            </div>
+          ) : null}
+        </>
       ) : null}
     </Shell>
   );

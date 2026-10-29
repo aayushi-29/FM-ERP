@@ -41,16 +41,21 @@ async function resolveClientRecipientIds(projectId: string, db: DbClient): Promi
 // Costing/Invoices at all (README's permission matrix). Routing a payment
 // claim or invoice notification through "company" was therefore handing
 // financial detail (amounts, claim status) to a role with no read access
-// to that data. "finance" is Admins + the project's Lead only — the two
-// roles that can actually read/act on payments — never NPD Executive.
-async function resolveFinanceRecipientIds(projectId: string, db: DbClient): Promise<string[]> {
-  const [admins, project] = await Promise.all([
-    db.user.findMany({ where: { role: "ADMIN", active: true }, select: { id: true } }),
-    db.project.findUnique({ where: { id: projectId }, select: { leadId: true } }),
-  ]);
-  const ids = new Set<string>(admins.map((u: { id: string }) => u.id));
-  if (project?.leadId) ids.add(project.leadId);
-  return Array.from(ids);
+// to that data.
+//
+// 29 Oct 2026 (fourth pass, follow-up): originally this also included the
+// project's Lead, on the theory that Project Lead could "read authorized
+// projects" worth of Costing/Invoices per the baseline matrix. Narrowed
+// further per the user: "admin pays to npd and lead, so they should not
+// know what is actually happening with payment data... he should not have
+// the project budget idea" — Project Lead can still see the production
+// cost breakdown (materials, making charge, overhead — unchanged,
+// lib/costing/scope.ts's canReadCosting), just not what the client is
+// actually being charged or has paid. So "finance" is now Admin only —
+// the one role that can act on payments at all (canManageInvoices).
+async function resolveFinanceRecipientIds(_projectId: string, db: DbClient): Promise<string[]> {
+  const admins = await db.user.findMany({ where: { role: "ADMIN", active: true }, select: { id: true } });
+  return admins.map((u: { id: string }) => u.id);
 }
 
 // Writes one Notification row per resolved recipient. `audience` picks who
@@ -62,10 +67,11 @@ async function resolveFinanceRecipientIds(projectId: string, db: DbClient): Prom
 //                        that reveals a financial figure to NPD Executive.
 //   "client"           — active Client users in the project's org.
 //   "both"              — company + client.
-//   "finance"           — Admin + Project Lead only (see
-//                         resolveFinanceRecipientIds above) — payment
-//                         claims, invoice amounts, anything NPD Executive
-//                         has no read access to.
+//   "finance"           — Admin only (see resolveFinanceRecipientIds
+//                         above) — payment claims, invoice amounts, and
+//                         anything else that reveals what the client is
+//                         being charged or has paid. Neither NPD Executive
+//                         nor Project Lead has read access to this.
 //   "financeAndClient"  — finance + client.
 // Pass `db` as a transaction client so these commit atomically with the
 // event they describe, same convention as logAudit/logProjectActivity.

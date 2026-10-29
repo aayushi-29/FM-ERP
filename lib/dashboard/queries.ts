@@ -80,7 +80,6 @@ export async function getProjectLeadDashboard(user: SessionUser) {
       overdueTasks: [],
       overdueMilestones: [],
       pendingApprovals: [],
-      invoicesAwaitingAction: [],
       activeProjects: [],
       inFlightFormulations: [],
     };
@@ -94,7 +93,14 @@ export async function getProjectLeadDashboard(user: SessionUser) {
   // summaries, same boundary as every other query here (see the file-level
   // comment): a Project Lead could already see all of this by opening each
   // project individually.
-  const [overdueTasks, overdueMilestones, pendingApprovals, invoicesAwaitingAction, activeProjectsRaw, inFlightFormulations] = await Promise.all([
+  // 29 Oct 2026 (fourth pass): confirmed with the user — Project Lead
+  // should have no visibility into what the client is being charged or
+  // has paid ("he should not have the project budget idea"), so the
+  // invoice query that used to sit here (invoicesAwaitingAction) was
+  // removed along with its dashboard Section. Project Lead can still see
+  // the production cost breakdown via canReadCosting/the Costing page —
+  // only client-facing invoice amounts are gone.
+  const [overdueTasks, overdueMilestones, pendingApprovals, activeProjectsRaw, inFlightFormulations] = await Promise.all([
     prisma.task.findMany({
       where: { projectId: { in: projectIds }, dueDate: { lt: now }, status: { not: "DONE" } },
       select: OVERDUE_TASK_SELECT,
@@ -116,12 +122,6 @@ export async function getProjectLeadDashboard(user: SessionUser) {
         formulation: { select: { name: true, product: { select: { name: true, project: { select: { id: true, name: true } } } } } },
       },
       orderBy: { submittedAt: "asc" },
-      take: 10,
-    }),
-    prisma.invoice.findMany({
-      where: { projectId: { in: projectIds }, status: { in: ["SENT", "PARTIALLY_PAID"] } },
-      select: { id: true, invoiceNumber: true, amount: true, dueDate: true, status: true, project: { select: { id: true, name: true } } },
-      orderBy: { dueDate: "asc" },
       take: 10,
     }),
     prisma.project.findMany({
@@ -158,7 +158,7 @@ export async function getProjectLeadDashboard(user: SessionUser) {
     openMilestoneCount: p.milestones.length,
   }));
 
-  return { projectIds, overdueTasks, overdueMilestones, pendingApprovals, invoicesAwaitingAction, activeProjects, inFlightFormulations };
+  return { projectIds, overdueTasks, overdueMilestones, pendingApprovals, activeProjects, inFlightFormulations };
 }
 
 export async function getNpdExecutiveDashboard(user: SessionUser) {

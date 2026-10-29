@@ -13,13 +13,18 @@ export function canManageCosting(role: Role): boolean {
   return role === "ADMIN";
 }
 
-// Invoices/payments row: "Admin: Manage" / "Project Lead: Read authorized
-// projects" / "NPD Executive: No access" / "Client: Own invoices and
-// payment status" — Client DOES get a read route here, unlike Costing,
-// but never a write one (payments are recorded by Admin from the bank
-// side, not self-reported by a Client).
+// Invoices/payments row: narrowed on the "Changed - Working Logic" branch,
+// 29 Oct 2026 (fourth pass), confirmed with the user — Project Lead and NPD
+// Executive are paid by Admin separately from the project's own commercial
+// terms, and should have no visibility into what the client is actually
+// being charged or has paid ("he should not have the project budget idea").
+// This DOES NOT touch canReadCosting above: a Project Lead can still see
+// the production cost breakdown (materials, making charge, overheads,
+// etc. on CostSheet) — that's the baseline's existing, unchanged "Costing"
+// row. Only the client-facing commercial figures (Invoice.amount, payment
+// claims, Payment records) are now Admin + Client only.
 export function canReadInvoices(role: Role): boolean {
-  return role === "ADMIN" || role === "PROJECT_LEAD" || role === "CLIENT";
+  return role === "ADMIN" || role === "CLIENT";
 }
 export function canManageInvoices(role: Role): boolean {
   return role === "ADMIN";

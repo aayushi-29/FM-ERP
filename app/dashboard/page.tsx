@@ -298,25 +298,6 @@ async function ProjectLeadSection({ user }: { user: SessionUser }) {
             </ul>
           )}
         </Section>
-
-        <Section title="Invoices awaiting payment">
-          {d.invoicesAwaitingAction.length === 0 ? (
-            <Empty />
-          ) : (
-            <ul>
-              {d.invoicesAwaitingAction.map((inv) => (
-                <li key={inv.id}>
-                  <Link href={`/invoices/${inv.id}`}>
-                    {inv.project.name} — {inv.invoiceNumber}
-                  </Link>
-                  <span className="fm-li-meta">
-                    {inv.amount.toString()} · {inv.status} · due {fmtDate(inv.dueDate)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Section>
       </div>
     </>
   );

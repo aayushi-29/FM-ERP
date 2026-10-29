@@ -27,10 +27,16 @@ describe("costing authorization matrix", () => {
     expect(canManageCosting("CLIENT")).toBe(false);
   });
 
-  it("lets ADMIN, PROJECT_LEAD and CLIENT read invoices, but not NPD_EXECUTIVE", () => {
+  // 29 Oct 2026 (fourth pass): narrowed, confirmed with the user — Project
+  // Lead is paid by Admin separately from the project's commercial terms
+  // and should have no visibility into what the client is charged or has
+  // paid ("he should not have the project budget idea"). Project Lead
+  // keeps canReadCosting above (materials, making charge, overhead) — only
+  // the client-facing invoice amount is now Admin + Client only.
+  it("lets only ADMIN and CLIENT read invoices, not PROJECT_LEAD or NPD_EXECUTIVE", () => {
     expect(canReadInvoices("ADMIN")).toBe(true);
-    expect(canReadInvoices("PROJECT_LEAD")).toBe(true);
     expect(canReadInvoices("CLIENT")).toBe(true);
+    expect(canReadInvoices("PROJECT_LEAD")).toBe(false);
     expect(canReadInvoices("NPD_EXECUTIVE")).toBe(false);
   });
 
