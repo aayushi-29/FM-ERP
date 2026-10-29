@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type NotificationItem = {
   id: string;
@@ -10,6 +10,23 @@ type NotificationItem = {
   isRead: boolean;
   createdAt: string;
 };
+
+// 29 Oct 2026 (fourth pass): fixed a hydration-mismatch crash reported on
+// this page — Date#toLocaleString() with no explicit locale uses the
+// *environment's* default locale/format, which differs between the Node
+// server (e.g. "10/29/2026, 9:21:34 PM") and the viewer's browser (e.g.
+// "29/10/2026, 21:21:34" for an India-formatted browser) — React then
+// throws because the server-rendered HTML doesn't match what the client
+// render produces. Rendering `null` on first paint (same on server and
+// client, since no effect has run yet) and filling in the formatted string
+// from a useEffect avoids ever calling toLocaleString() during SSR at all.
+function FormattedTime({ iso }: { iso: string }) {
+  const [text, setText] = useState<string | null>(null);
+  useEffect(() => {
+    setText(new Date(iso).toLocaleString());
+  }, [iso]);
+  return <span className="fm-li-meta">{text}</span>;
+}
 
 // 29 Oct 2026 (fourth pass): confirmed with the user — "see common and
 // important notification as segregated" when they click the bell, instead
@@ -62,7 +79,7 @@ export function NotificationFeed({
     const content = (
       <>
         <span>{n.message}</span>
-        <span className="fm-li-meta">{new Date(n.createdAt).toLocaleString()}</span>
+        <FormattedTime iso={n.createdAt} />
       </>
     );
     return (

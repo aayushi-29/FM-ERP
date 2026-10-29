@@ -33,7 +33,13 @@ export function CommandPalette() {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      const isK = e.key.toLowerCase() === "k";
+      // 29 Oct 2026 (fourth pass): fixed a crash reported on /login —
+      // "Cannot read properties of undefined (reading 'toLowerCase')".
+      // Some keydown events (password-manager autofill, certain IME
+      // composition events, synthetic events some extensions dispatch)
+      // fire with e.key undefined/empty rather than a real key value.
+      // Optional-chaining this is enough: a missing key just can't be "k".
+      const isK = e.key?.toLowerCase() === "k";
       if ((e.metaKey || e.ctrlKey) && isK) {
         e.preventDefault();
         setOpen((o) => !o);
