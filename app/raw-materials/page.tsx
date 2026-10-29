@@ -133,15 +133,14 @@ export default async function RawMaterialsPage() {
                       <td>{m.defaultCostPerUnit ? `₹${m.defaultCostPerUnit.toString()}` : "—"}</td>
                       <td>
                         <div>
-                          <strong>
-                            {m.stockOnHand.toString()} {m.defaultUnit}
-                          </strong>
+                          <strong style={{ fontSize: "1.05rem" }}>{m.stockOnHand.toString()}</strong>
                           {isLow ? (
                             <span className="fm-badge fm-badge-warn" style={{ marginLeft: 8 }}>
                               Low stock
                             </span>
                           ) : null}
                         </div>
+                        <div className="fm-li-meta">{m.defaultUnit}</div>
                         {m.reorderThreshold != null ? (
                           <div className="fm-li-meta">warns below {m.reorderThreshold.toString()} {m.defaultUnit}</div>
                         ) : null}
