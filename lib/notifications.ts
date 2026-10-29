@@ -76,6 +76,11 @@ export async function notify(
     type: string;
     message: string;
     link?: string;
+    // 29 Oct 2026 (fourth pass): confirmed with the user — a rejection the
+    // recipient needs to act on (revise and resubmit) should be flagged
+    // apart from a routine, read-only notice. Defaults false; callers opt
+    // in explicitly, never inferred from `type`.
+    urgent?: boolean;
   },
   db: DbClient = prisma
 ): Promise<void> {
@@ -100,6 +105,7 @@ export async function notify(
       type: entry.type,
       message: entry.message,
       link: entry.link,
+      urgent: entry.urgent ?? false,
     })),
   });
 }
@@ -113,7 +119,7 @@ export async function notify(
 // role-wide broadcast.
 export async function notifyUsers(
   userIds: string[],
-  entry: { type: string; message: string; link?: string },
+  entry: { type: string; message: string; link?: string; urgent?: boolean },
   db: DbClient = prisma
 ): Promise<void> {
   const ids = Array.from(new Set(userIds));
@@ -126,6 +132,7 @@ export async function notifyUsers(
       type: entry.type,
       message: entry.message,
       link: entry.link,
+      urgent: entry.urgent ?? false,
     })),
   });
 }
@@ -138,7 +145,7 @@ export async function notifyUsers(
 // Notification.projectId is left null, same nullable field the model
 // already had for exactly this kind of non-project notification.
 export async function notifyCompanyWide(
-  entry: { type: string; message: string; link?: string },
+  entry: { type: string; message: string; link?: string; urgent?: boolean },
   db: DbClient = prisma
 ): Promise<void> {
   const recipients = await db.user.findMany({
@@ -154,6 +161,7 @@ export async function notifyCompanyWide(
       type: entry.type,
       message: entry.message,
       link: entry.link,
+      urgent: entry.urgent ?? false,
     })),
   });
 }
@@ -165,7 +173,7 @@ export async function notifyCompanyWide(
 // notifyCompanyWide's hardcoded ADMIN/NPD_EXECUTIVE pair would do here.
 export async function notifyRoleWide(
   roles: ("ADMIN" | "PROJECT_LEAD" | "NPD_EXECUTIVE" | "CLIENT")[],
-  entry: { type: string; message: string; link?: string },
+  entry: { type: string; message: string; link?: string; urgent?: boolean },
   db: DbClient = prisma
 ): Promise<void> {
   const recipients = await db.user.findMany({
@@ -181,6 +189,7 @@ export async function notifyRoleWide(
       type: entry.type,
       message: entry.message,
       link: entry.link,
+      urgent: entry.urgent ?? false,
     })),
   });
 }

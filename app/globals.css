@@ -876,6 +876,51 @@ main {
   color: var(--fm-text-muted);
 }
 
+/* 29 Oct 2026 (fourth pass): the dedicated /notifications page — segregated
+   "Needs your action" (urgent) vs "Updates" (everything else) sections, per
+   the user's request that urgent items not sit in the same box as routine
+   ones. Reuses .fm-section-grid for the two-column layout and the same
+   item-row shape as the bell's dropdown (.fm-notif-item), just sized for a
+   full page instead of a 320px popover. */
+.fm-notif-feed-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fm-notif-feed-item {
+  padding: 10px 8px;
+  border-radius: 10px;
+  font-size: 0.86rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.fm-notif-feed-item a,
+.fm-notif-feed-item span:first-child {
+  color: inherit;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.fm-notif-feed-item-unread {
+  background: rgba(201, 160, 106, 0.16);
+  font-weight: 600;
+}
+
+.fm-notif-markall-btn {
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
 .fm-shell-main {
   max-width: 1180px;
   margin: 0 auto;

@@ -59,12 +59,16 @@ export async function POST(request: Request, { params }: { params: { id: string 
         tx
       );
       if (material.createdById) {
+        // 29 Oct 2026 (fourth pass): confirmed with the user — a rejection
+        // that needs the recipient to act (fix and resubmit) is flagged
+        // urgent, separate from routine notices.
         await notifyUsers(
           [material.createdById],
           {
             type: "raw_material.rejected",
             message: `${actor.name} rejected your raw material "${result.name}"${input.reason ? `: ${input.reason}` : "."}`,
             link: "/raw-materials",
+            urgent: true,
           },
           tx
         );

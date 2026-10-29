@@ -49,6 +49,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
         },
         tx
       );
+      // 29 Oct 2026 (fourth pass): confirmed with the user — a rejection
+      // that needs the recipient to act (resubmit with corrected details)
+      // is flagged urgent, separate from routine notices.
       await notify(
         {
           projectId: claim.invoice.projectId,
@@ -56,6 +59,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
           type: "payment_claim.rejected",
           message: `Your payment claim on ${claim.invoice.invoiceNumber} was rejected: ${input.reason}`,
           link: `/invoices/${claim.invoice.id}`,
+          urgent: true,
         },
         tx
       );

@@ -5,6 +5,7 @@ import { requireRole, assertProjectAccess, ForbiddenError } from "@/lib/auth/rba
 import { getProjectIdForFormulationVersion, assertFound } from "@/lib/npd/scope";
 import { logProjectActivity } from "@/lib/projects/activity";
 import { logAudit } from "@/lib/audit";
+import { notifyUsers } from "@/lib/notifications";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse } from "@/lib/api/respond";
 
@@ -77,6 +78,26 @@ export async function POST(request: Request, { params }: { params: { id: string 
           projectId,
           actorId: actor.id,
           summary: `Formulation v${updated.versionNumber} ${input.decision.toLowerCase()}`,
+        },
+        tx
+      );
+
+      // 29 Oct 2026 (fourth pass): this route previously sent no
+      // notification at all — the author only found out by checking the
+      // page. Confirmed with the user: tell the specific author directly
+      // (not a role-wide broadcast), and flag a rejection urgent since it
+      // needs them to revise and resubmit, same treatment as a rejected
+      // payment claim or raw material.
+      await notifyUsers(
+        [version.authorId],
+        {
+          type: `formulation_version.${input.decision.toLowerCase()}`,
+          message:
+            input.decision === "REJECTED"
+              ? `Your formulation version v${updated.versionNumber} was rejected${input.comment ? `: ${input.comment}` : "."} Revise and resubmit.`
+              : `Your formulation version v${updated.versionNumber} was approved.`,
+          link: `/formulation-versions/${params.id}`,
+          urgent: input.decision === "REJECTED",
         },
         tx
       );

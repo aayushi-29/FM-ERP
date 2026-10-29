@@ -913,9 +913,18 @@ model Notification {
   message     String
   link        String?
   isRead      Boolean   @default(false)
+  // 29 Oct 2026 (fourth pass): confirmed with the user — a rejection that
+  // needs the recipient to act (revise and resubmit) should stand apart
+  // from routine, read-and-move-on notices, not sit mixed into one flat
+  // list. Set true by lib/notifications.ts's callers for exactly that kind
+  // of event (a formulation version or raw material rejected, a payment
+  // claim rejected) — never inferred from `type` at read time, so it's an
+  // explicit choice at the point each notification is written.
+  urgent      Boolean   @default(false)
   createdAt   DateTime  @default(now())
 
   @@index([recipientId, isRead])
+  @@index([recipientId, urgent, isRead])
   @@index([projectId])
 }
 
