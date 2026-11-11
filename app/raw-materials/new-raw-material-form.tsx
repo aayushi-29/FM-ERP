@@ -11,6 +11,13 @@ type Supplier = { id: string; name: string };
 // treatment described in docs/decisions.md for this whole page, since it's
 // used by non-technical staff and free-text units were drifting ("Kg" vs
 // "kg" vs "kgs").
+// 11 Nov 2026: category-aware stock batches — confirmed with the user.
+const MATERIAL_CATEGORIES = [
+  { value: "STANDARD", label: "Standard (supplier, good shelf life)" },
+  { value: "PERISHABLE", label: "Perishable (local market, used fresh)" },
+  { value: "PACKAGING", label: "Packaging" },
+] as const;
+
 export function NewRawMaterialForm({ suppliers }: { suppliers: Supplier[] }) {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -18,6 +25,8 @@ export function NewRawMaterialForm({ suppliers }: { suppliers: Supplier[] }) {
   const [defaultUnit, setDefaultUnit] = useState<string>(RAW_MATERIAL_UNITS[0]);
   const [defaultCostPerUnit, setDefaultCostPerUnit] = useState("");
   const [lowStockThreshold, setLowStockThreshold] = useState("");
+  const [category, setCategory] = useState<string>("STANDARD");
+  const [shelfLifeDays, setShelfLifeDays] = useState("1");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -35,6 +44,8 @@ export function NewRawMaterialForm({ suppliers }: { suppliers: Supplier[] }) {
           defaultUnit,
           defaultCostPerUnit: defaultCostPerUnit || undefined,
           reorderThreshold: lowStockThreshold || undefined,
+          category,
+          shelfLifeDays: category === "PERISHABLE" ? shelfLifeDays || undefined : undefined,
         }),
       });
       if (!res.ok) {
@@ -47,6 +58,8 @@ export function NewRawMaterialForm({ suppliers }: { suppliers: Supplier[] }) {
       setDefaultUnit(RAW_MATERIAL_UNITS[0]);
       setDefaultCostPerUnit("");
       setLowStockThreshold("");
+      setCategory("STANDARD");
+      setShelfLifeDays("1");
       router.refresh();
     } catch {
       setError("Could not reach the server.");
@@ -102,6 +115,27 @@ export function NewRawMaterialForm({ suppliers }: { suppliers: Supplier[] }) {
           style={{ display: "block", width: "100%", padding: 6 }}
         />
       </label>
+      <label style={{ minWidth: 220 }}>
+        Category
+        <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ display: "block", width: "100%", padding: 6 }}>
+          {MATERIAL_CATEGORIES.map((c) => (
+            <option key={c.value} value={c.value}>{c.label}</option>
+          ))}
+        </select>
+      </label>
+      {category === "PERISHABLE" ? (
+        <label style={{ width: 130 }}>
+          Shelf life (days)
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={shelfLifeDays}
+            onChange={(e) => setShelfLifeDays(e.target.value)}
+            style={{ display: "block", width: "100%", padding: 6 }}
+          />
+        </label>
+      ) : null}
       <button type="submit" disabled={submitting}>{submitting ? "Adding…" : "Add material"}</button>
       {error ? <p role="alert" style={{ color: "#b00020", fontSize: ".85rem", width: "100%" }}>{error}</p> : null}
     </form>

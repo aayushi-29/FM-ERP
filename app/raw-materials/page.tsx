@@ -9,6 +9,7 @@ import { CoaUploadForm } from "./coa-upload-form";
 import { StockMovementForm } from "./stock-movement-form";
 import { SetStockForm } from "./set-stock-form";
 import { MaterialApprovalActions } from "./material-approval-actions";
+import { BatchPanel, type BatchRow } from "./batch-panel";
 import { Shell } from "@/app/components/shell";
 
 export const metadata: Metadata = { title: "Raw Materials" };
@@ -24,11 +25,29 @@ export const metadata: Metadata = { title: "Raw Materials" };
 // quantity field in the schema (prisma/schema.prisma) — so that duplicate
 // column was removed. "Stock on hand" (with its low-stock badge and
 // "warns below N" threshold note) is now the single number, same as before.
-export default async function RawMaterialsPage() {
+// 11 Nov 2026: category-aware stock batches — confirmed with the user. A
+// query-param filter (?category=) rather than client-side state, same
+// idiom as this app's other Link-based navigation (breadcrumbs, nav tabs) —
+// no extra client component needed just to filter a table.
+const CATEGORY_TABS = [
+  { value: "ALL", label: "All" },
+  { value: "STANDARD", label: "Standard" },
+  { value: "PERISHABLE", label: "Perishable" },
+  { value: "PACKAGING", label: "Packaging" },
+] as const;
+
+export default async function RawMaterialsPage({
+  searchParams,
+}: {
+  searchParams?: { category?: string };
+}) {
   const user = await requireRoleOrRedirect(["ADMIN", "PROJECT_LEAD", "NPD_EXECUTIVE"]);
   const canManage = canManageInventory(user.role);
   // 29 Oct 2026 (fourth pass): materials-approval workflow.
   const canApprove = canApproveMaterials(user.role);
+  const activeCategory = CATEGORY_TABS.some((c) => c.value === searchParams?.category)
+    ? (searchParams!.category as (typeof CATEGORY_TABS)[number]["value"])
+    : "ALL";
 
   const [suppliers, rawMaterials] = await Promise.all([
     prisma.supplier.findMany({
@@ -58,10 +77,50 @@ export default async function RawMaterialsPage() {
         approvalStatus: true,
         rejectionReason: true,
         createdBy: { select: { id: true, name: true } },
+        // 11 Nov 2026: category-aware stock batches.
+        category: true,
+        shelfLifeDays: true,
+        batches: {
+          select: {
+            id: true,
+            receivedQty: true,
+            remainingQty: true,
+            receivedAt: true,
+            expiresAt: true,
+            movements: { select: { type: true, quantity: true } },
+          },
+          orderBy: { receivedAt: "desc" },
+          take: 10,
+        },
       },
       orderBy: { name: "asc" },
     }),
   ]);
+
+  // 11 Nov 2026: fold each batch's movements into used/wasted totals here
+  // (same "compute in JS, not a DB aggregate" style already used for
+  // lowStockCount below) so BatchPanel just renders flat rows.
+  const materialsWithBatchRows = rawMaterials.map((m) => ({
+    ...m,
+    batchRows: m.batches.map((b): BatchRow => {
+      const usedQty = b.movements.filter((mv) => mv.type === "USED").reduce((sum, mv) => sum + Number(mv.quantity), 0);
+      const wastedQty = b.movements.filter((mv) => mv.type === "WASTED").reduce((sum, mv) => sum + Number(mv.quantity), 0);
+      return {
+        id: b.id,
+        receivedQty: b.receivedQty.toString(),
+        remainingQty: b.remainingQty.toString(),
+        receivedAt: b.receivedAt.toISOString(),
+        expiresAt: b.expiresAt ? b.expiresAt.toISOString() : null,
+        usedQty: usedQty.toString(),
+        wastedQty: wastedQty.toString(),
+      };
+    }),
+  }));
+
+  const visibleMaterials =
+    activeCategory === "ALL"
+      ? materialsWithBatchRows
+      : materialsWithBatchRows.filter((m) => m.category === activeCategory);
 
   const lowStockCount = rawMaterials.filter(
     (m) => m.reorderThreshold != null && Number(m.stockOnHand) <= Number(m.reorderThreshold)
@@ -126,14 +185,26 @@ export default async function RawMaterialsPage() {
 
       <div className="fm-table-card">
         <h3>Raw materials</h3>
-        {rawMaterials.length === 0 ? (
-          <p className="fm-empty">No raw materials yet.</p>
+        <nav style={{ display: "flex", gap: 6, marginBottom: 10 }} aria-label="Filter by category">
+          {CATEGORY_TABS.map((tab) => (
+            <Link
+              key={tab.value}
+              href={tab.value === "ALL" ? "/raw-materials" : `/raw-materials?category=${tab.value}`}
+              className={activeCategory === tab.value ? "fm-badge fm-badge-good" : "fm-badge"}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </nav>
+        {visibleMaterials.length === 0 ? (
+          <p className="fm-empty">No raw materials in this category yet.</p>
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table>
               <thead>
                 <tr>
                   <th>Name</th>
+                  <th>Category</th>
                   <th>Supplier</th>
                   <th>Unit</th>
                   <th>Price per unit</th>
@@ -143,11 +214,12 @@ export default async function RawMaterialsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rawMaterials.map((m) => {
+                {visibleMaterials.map((m) => {
                   const isLow = m.reorderThreshold != null && Number(m.stockOnHand) <= Number(m.reorderThreshold);
                   return (
                     <tr key={m.id}>
                       <td>{m.name}</td>
+                      <td>{m.category.charAt(0) + m.category.slice(1).toLowerCase()}</td>
                       <td>{m.supplier?.name ?? "—"}</td>
                       <td>{m.defaultUnit}</td>
                       <td>{m.defaultCostPerUnit ? `₹${m.defaultCostPerUnit.toString()}` : "—"}</td>
@@ -178,6 +250,12 @@ export default async function RawMaterialsPage() {
                           <div style={{ marginTop: 6 }}>
                             <StockMovementForm rawMaterialId={m.id} />
                             <SetStockForm rawMaterialId={m.id} currentStock={m.stockOnHand.toString()} />
+                            <BatchPanel
+                              rawMaterialId={m.id}
+                              defaultUnit={m.defaultUnit}
+                              category={m.category}
+                              batches={m.batchRows}
+                            />
                           </div>
                         ) : null}
                       </td>

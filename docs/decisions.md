@@ -28,6 +28,7 @@ rather than drawn from the baseline.
 | 15 | Dedicated Client Portal page | New: a consolidated Client-facing landing page (own project status, milestones, approved documents, invoices), in addition to the existing dashboard/project views | **Added 29 Oct 2026 on the "Changed - Working Logic" branch — see note below** |
 | 16 | Client payment claims | New: a Client can submit a claim that they've paid an invoice (amount, bank account, mode, acknowledgement/reference no.); an Admin verifies it by Acknowledging (which creates the real Payment) or Rejecting (with a reason). The existing Admin-only Payment recording path is unchanged and stays the system of record. | **Added 29 Oct 2026 (second pass) on the "Changed - Working Logic" branch — see note below** |
 | 17 | MRP visibility to client | New: an Admin-entered `recommendedMrp` on a CostSheet, publishable as a single number ("MRP") on the client's project view. The CostSheet record itself (cost breakdown, `canReadCosting`) stays completely closed to Client — only this one published number is ever exposed. | **Added 29 Oct 2026 (second pass) on the "Changed - Working Logic" branch — see note below** |
+| 18 | Category-aware stock batches | New: raw materials get a `category` (Standard / Perishable / Packaging) and an optional per-batch expiry. Every delivery is its own `StockBatch`, and staff log how much of a batch was Used or Wasted, giving a real received/used/wasted/remaining number per material instead of one pooled total. Deliberately additive to item #7's `stockOnHand`/`StockMovement` (unchanged, still the running total) rather than a replacement. | **Added 11 Nov 2026 on the "Changed - Working Logic" branch — see note below** |
 
 ## Non-negotiables carried into every module
 
@@ -266,3 +267,47 @@ behavior documented in the two notes above it — additive only.
   changed; the admin-facing (non-Client) branch of `app/projects/[id]/page.tsx`
   was intentionally left as-is, since the spec named only these two client-facing
   spots.
+- **Category-aware stock batches (item #18)**: the user described three real
+  situations in plain terms — (a) supplier-sourced materials with a decent shelf
+  life, want received/used/remaining; (b) local-market materials bought fresh
+  (typically 1-day shelf life), want used-vs-wasted since unsold stock can't carry
+  over; (c) packaging-only stock, not a cooking ingredient, same
+  received/used/remaining question. Confirmed with the user: perishables need
+  real per-delivery tracking (not just a lifetime total), packaging stays on the
+  same Raw Materials page as its own filterable category rather than a separate
+  page, and usage/waste stays a manual log entry — no automatic deduction tied to
+  production/trials.
+  `RawMaterial.category` (`MaterialCategory`: `STANDARD` / `PERISHABLE` /
+  `PACKAGING`, default `STANDARD` so every existing row is unaffected) and
+  `RawMaterial.shelfLifeDays` (nullable) are new, additive fields. The new
+  `StockBatch` model is one row per delivery — received qty, a denormalized
+  running `remainingQty`, received date, optional expiry (auto-filled from
+  `shelfLifeDays` for a `PERISHABLE` material, overridable per batch). Each
+  logged `StockBatchMovement` is typed `USED` or `WASTED` (`lib/inventory
+  /batches.ts`: `receiveBatch`, `logBatchUsage`), which is the real gap this
+  closes — item #7's `StockMovement.reason` is free text, not something you can
+  reliably report "how much was wasted" against.
+  Deliberately does **not** touch item #7's `stockOnHand`/`StockMovement`/
+  `reorderThreshold` — both `receiveBatch` and `logBatchUsage` call the existing
+  `recordStockMovement` in the same transaction, so `stockOnHand` stays the one
+  running total it always was and the existing low-stock alert keeps working
+  unchanged. The existing "+/- adjustment" and "set current stock" forms
+  (`stock-movement-form.tsx`, `set-stock-form.tsx`) are untouched; the new
+  per-material "Batches" panel (`app/raw-materials/batch-panel.tsx`) is an
+  additional, opt-in layer — a material that never gets a batch created for it
+  behaves exactly as it did before this feature. `/raw-materials` gained a
+  Category column and a `?category=` filter (plain `Link`s, same idiom as the
+  rest of the app's query-param navigation — no new client-side state).
+  `app/api/raw-materials/[id]/batches` (receive) and
+  `app/api/raw-materials/[id]/batches/[batchId]/log` (log used/wasted) reuse
+  `canManageInventory` — no new permission was needed.
+  Same sandbox limitation as every other schema change on this branch (see
+  `tests/setup/fakePrisma.ts`): no live Postgres reachable here, so
+  `prisma migrate dev` couldn't be run — `prisma/schema.prisma` has the new
+  models/fields, but the migration SQL under `prisma/migrations/` still needs
+  generating once there's real DB access, exactly as already true for every
+  model added since `20261028142014_fmdb` (StockMovement, Proposal,
+  PaymentClaim, etc. — the migration history has been behind schema.prisma
+  since the first pass, not something this change introduces). Covered by
+  `tests/inventory/batches.test.ts` against the same fake-Prisma style as
+  `tests/inventory/stock.test.ts`.

@@ -38,6 +38,21 @@ export async function GET() {
         rejectionReason: true,
         createdBy: { select: { id: true, name: true } },
         approvedBy: { select: { id: true, name: true } },
+        // 11 Nov 2026: category-aware stock batches.
+        category: true,
+        shelfLifeDays: true,
+        batches: {
+          select: {
+            id: true,
+            receivedQty: true,
+            remainingQty: true,
+            receivedAt: true,
+            expiresAt: true,
+            movements: { select: { type: true, quantity: true } },
+          },
+          orderBy: { receivedAt: "desc" },
+          take: 10,
+        },
       },
       orderBy: { name: "asc" },
     });
@@ -58,6 +73,11 @@ const createRawMaterialSchema = z.object({
   // 29 Oct 2026: stock monitoring addition — null/omitted means no
   // low-stock alerting is configured for this material.
   reorderThreshold: z.string().regex(/^\d+(\.\d+)?$/).optional(),
+  // 11 Nov 2026: category-aware stock batches — confirmed with the user.
+  // Defaults to STANDARD so omitting this (older clients, existing
+  // scripts) behaves exactly as before.
+  category: z.enum(["STANDARD", "PERISHABLE", "PACKAGING"]).optional(),
+  shelfLifeDays: z.coerce.number().int().positive().optional(),
 });
 
 export async function POST(request: Request) {
@@ -94,6 +114,8 @@ export async function POST(request: Request) {
           defaultUnit: input.defaultUnit,
           defaultCostPerUnit: input.defaultCostPerUnit ? new Decimal(input.defaultCostPerUnit) : undefined,
           reorderThreshold: input.reorderThreshold ? new Decimal(input.reorderThreshold) : undefined,
+          category: input.category ?? "STANDARD",
+          shelfLifeDays: input.shelfLifeDays,
           createdById: actor.id,
           approvalStatus: isNpdSubmission ? "PENDING" : "APPROVED",
           approvedById: isNpdSubmission ? undefined : actor.id,

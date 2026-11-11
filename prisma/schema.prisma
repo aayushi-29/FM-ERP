@@ -85,6 +85,10 @@ model User {
   rawMaterialsCreated  RawMaterial[] @relation("RawMaterialCreatedBy")
   rawMaterialsApproved RawMaterial[] @relation("RawMaterialApprovedBy")
 
+  // 11 Nov 2026: category-aware stock batches — confirmed with the user.
+  stockBatchesRecorded         StockBatch[]         @relation("StockBatchRecorder")
+  stockBatchMovementsRecorded  StockBatchMovement[]  @relation("StockBatchMovementRecorder")
+
   @@index([clientOrgId])
 }
 
@@ -840,18 +844,54 @@ model RawMaterial {
   approvedAt      DateTime?
   rejectionReason String?
 
+  // 11 Nov 2026: category-aware stock batches — confirmed with the user.
+  // Three real situations staff described: (a) supplier-sourced materials
+  // with a decent shelf life — just want received/used/remaining; (b)
+  // local-market materials bought fresh, same-day shelf life — want
+  // used-vs-wasted, since unsold stock can't be carried over; (c)
+  // packaging-only stock (not a cooking ingredient at all) — same
+  // received/used/remaining question, different kind of "use."
+  // Deliberately one mechanism for all three (StockBatch below) rather than
+  // three separate models — they're the same "a delivery arrived, some of
+  // it got used, some of it may have gone to waste" shape, just with
+  // different urgency. Default STANDARD so every pre-existing row keeps
+  // behaving exactly as it does today; this is purely additive and does
+  // not touch stockOnHand/StockMovement/reorderThreshold above, which stay
+  // the single running total exactly as before — a batch receipt or a
+  // batch usage/waste entry *also* calls the existing recordStockMovement
+  // under the hood (lib/inventory/batches.ts), so stockOnHand never drifts
+  // out of sync with the sum of batches.
+  category      MaterialCategory @default(STANDARD)
+  // Only meaningful for PERISHABLE materials — e.g. 1 for "must be used the
+  // same day." Null for STANDARD/PACKAGING (no tracked expiry). Used only
+  // to auto-fill a new batch's expiresAt; staff can still override it per
+  // batch.
+  shelfLifeDays Int?
+
   ingredientLines IngredientLine[]
   attachments     RawMaterialAttachment[]
   stockMovements  StockMovement[]
+  batches         StockBatch[]
 
   @@index([supplierId])
   @@index([approvalStatus])
+  @@index([category])
 }
 
 enum MaterialApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum MaterialCategory {
+  // Supplier-sourced, good shelf life — the default for every material
+  // that existed before this feature.
+  STANDARD
+  // Local-market, must be used fresh — shelfLifeDays is normally 1.
+  PERISHABLE
+  // Packaging consumables, not a cooking ingredient.
+  PACKAGING
 }
 
 // One row per stock change (a delivery received, consumption recorded,
@@ -871,6 +911,59 @@ model StockMovement {
   recordedAt    DateTime @default(now())
 
   @@index([rawMaterialId])
+}
+
+// 11 Nov 2026: one row per delivery/receipt — "today's batch of X, 5kg,
+// expires tomorrow." Deliberately separate from StockMovement above rather
+// than replacing it: StockMovement stays the one ledger behind
+// RawMaterial.stockOnHand (untouched, still used by the existing +/-
+// adjustment and "set current stock" flows); StockBatch is an additional,
+// opt-in layer of detail for materials where staff want to track a
+// specific delivery's received/used/wasted/remaining rather than just one
+// pooled total. remainingQty is denormalized (kept in sync with
+// StockBatchMovement rows in the same transaction, lib/inventory/batches.ts
+// — same pattern as RawMaterial.stockOnHand), so it doesn't need summing on
+// every read. expiresAt is null for a material with no tracked shelf life
+// (STANDARD/PACKAGING); for PERISHABLE it's normally auto-filled from
+// RawMaterial.shelfLifeDays when the batch is received.
+model StockBatch {
+  id            String    @id @default(cuid())
+  rawMaterialId String
+  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  receivedQty   Decimal   @db.Decimal(14, 4)
+  remainingQty  Decimal   @db.Decimal(14, 4)
+  receivedAt    DateTime  @default(now())
+  expiresAt     DateTime?
+  recordedById  String
+  recordedBy    User      @relation("StockBatchRecorder", fields: [recordedById], references: [id])
+
+  movements StockBatchMovement[]
+
+  @@index([rawMaterialId])
+  @@index([expiresAt])
+}
+
+enum StockBatchMovementType {
+  USED
+  WASTED
+}
+
+// One row per "X of this batch got used" or "X of this batch had to be
+// thrown away." Summed per batch (and per material, across its batches) to
+// answer exactly the three questions this feature was built for: how much
+// has been used so far, how much wasted, how much is left.
+model StockBatchMovement {
+  id           String   @id @default(cuid())
+  stockBatchId String
+  stockBatch   StockBatch @relation(fields: [stockBatchId], references: [id])
+  type         StockBatchMovementType
+  quantity     Decimal  @db.Decimal(14, 4)
+  note         String?
+  recordedById String
+  recordedBy   User     @relation("StockBatchMovementRecorder", fields: [recordedById], references: [id])
+  recordedAt   DateTime @default(now())
+
+  @@index([stockBatchId])
 }
 
 // Ingredient Certificate of Analysis, image-only (enforced in the upload
