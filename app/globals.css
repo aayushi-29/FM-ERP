@@ -1263,14 +1263,33 @@ main {
 
 .fm-entity-card-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 6px 10px;
+}
+
+/* The name/email block and the role badge are flex siblings; without
+   min-width: 0 a long email can't shrink below its own intrinsic width,
+   which pushes the badge (an unbreakable word like "NPD_EXECUTIVE") past
+   the card's right edge instead of wrapping it onto its own line. */
+.fm-entity-card-head > div {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .fm-entity-card-head h3 {
   margin: 0 0 4px;
   font-size: 1.02rem;
+  overflow-wrap: anywhere;
+}
+
+.fm-entity-card-head .fm-li-meta {
+  overflow-wrap: anywhere;
+}
+
+.fm-entity-card-head > .fm-badge {
+  flex-shrink: 0;
 }
 
 .fm-entity-card-stats {

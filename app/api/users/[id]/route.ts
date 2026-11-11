@@ -8,6 +8,7 @@ import { logAudit } from "@/lib/audit";
 import { isSameOrigin } from "@/lib/security/origin";
 import { errorResponse } from "@/lib/api/respond";
 import { isPrimaryAdmin } from "@/lib/auth/super-admin";
+import { getUserDeleteBlockers } from "@/lib/users/delete-blockers";
 
 const ROLE_VALUES = ["ADMIN", "PROJECT_LEAD", "NPD_EXECUTIVE", "CLIENT"] as const;
 
@@ -144,6 +145,21 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 
     try {
       await prisma.$transaction(async (tx) => {
+        // These two are the only User relations it's safe to clear
+        // automatically rather than list as a blocker: Task.assigneeId is
+        // optional (unassigning doesn't erase who actually did the work —
+        // that's on the task's own history/comments, not this column) and
+        // a Notification is just an in-app ping, not a business record.
+        // Everything else below (projects led, invoices created, etc.) is
+        // a "who did this" fact that must stay pointing at a real person,
+        // so it's reported via getUserDeleteBlockers instead of touched
+        // here. If some other, unlisted relation is still what's actually
+        // blocking the delete() below, this whole transaction — including
+        // these two updates — rolls back together, so nothing is left
+        // half-changed.
+        await tx.task.updateMany({ where: { assigneeId: target.id }, data: { assigneeId: null } });
+        await tx.notification.deleteMany({ where: { recipientId: target.id } });
+
         await tx.user.delete({ where: { id: target.id } });
 
         // targetId is a plain string column on AuditLog, not a foreign
@@ -163,10 +179,12 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && (err.code === "P2003" || err.code === "P2014")) {
+        const blockers = await getUserDeleteBlockers(target.id);
         return NextResponse.json(
           {
             error:
-              "This user has related records (projects led, approvals, invoices, audit history, etc.) and can't be permanently deleted without losing that history. Deactivate them instead to revoke access while keeping the records intact.",
+              "This user has related records and can't be permanently deleted without losing that history. Go resolve each item below (reassign or close it out), or deactivate this account instead to revoke access while keeping the records intact.",
+            blockers,
           },
           { status: 409 }
         );

@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+type DeleteBlockerItem = { label: string; href?: string };
+type DeleteBlockerGroup = { label: string; count: number; items: DeleteBlockerItem[] };
+
 export function UserActions({
   id,
   active,
@@ -15,6 +18,7 @@ export function UserActions({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [blockers, setBlockers] = useState<DeleteBlockerGroup[] | null>(null);
 
   async function toggleActive() {
     setPending(true);
@@ -34,13 +38,14 @@ export function UserActions({
   async function deleteUser() {
     if (
       !confirm(
-        "Permanently delete this user? This cannot be undone. If they have related records (projects, invoices, approvals), the delete will be blocked — deactivate them instead in that case."
+        "Permanently delete this user? This cannot be undone. If they have related records (projects, invoices, approvals), the delete will be blocked and you'll see exactly what's still linked to them."
       )
     ) {
       return;
     }
     setPending(true);
     setError(null);
+    setBlockers(null);
     try {
       const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
       if (res.ok) {
@@ -48,6 +53,7 @@ export function UserActions({
       } else {
         const body = await res.json().catch(() => ({}));
         setError(body.error || "Failed to delete user");
+        setBlockers(Array.isArray(body.blockers) ? body.blockers : null);
       }
     } finally {
       setPending(false);
@@ -70,7 +76,44 @@ export function UserActions({
           </button>
         )}
       </div>
-      {error && <span style={{ fontSize: ".78rem", color: "#b00020" }}>{error}</span>}
+
+      {error && (
+        <span style={{ fontSize: ".78rem", color: "#b00020", maxWidth: 320 }}>{error}</span>
+      )}
+
+      {blockers && blockers.length > 0 && (
+        <div
+          style={{
+            fontSize: ".76rem",
+            maxWidth: 320,
+            border: "1px solid rgba(176,0,32,0.3)",
+            borderRadius: 6,
+            padding: "6px 8px",
+            marginTop: 2,
+          }}
+        >
+          {blockers.map((group) => (
+            <div key={group.label} style={{ marginBottom: 4 }}>
+              <strong>
+                {group.label} ({group.count})
+              </strong>
+              <ul style={{ margin: "2px 0 0", paddingLeft: 16 }}>
+                {group.items.map((item, i) =>
+                  item.href ? (
+                    <li key={i}>
+                      <a href={item.href} target="_blank" rel="noopener noreferrer">
+                        {item.label}
+                      </a>
+                    </li>
+                  ) : (
+                    <li key={i}>{item.label}</li>
+                  )
+                )}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
