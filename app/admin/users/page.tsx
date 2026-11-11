@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { NewUserForm } from "./new-user-form";
 import { UserActions } from "./user-actions";
 import { Shell } from "@/app/components/shell";
+import { isPrimaryAdmin } from "@/lib/auth/super-admin";
 
 export const metadata: Metadata = { title: "Users" };
 
@@ -12,6 +13,7 @@ export const metadata: Metadata = { title: "Users" };
 // mistaken for finished UI.
 export default async function AdminUsersPage() {
   const user = await requireRoleOrRedirect(["ADMIN"]);
+  const canDelete = isPrimaryAdmin(user.email);
 
   const [users, clientOrgs] = await Promise.all([
     prisma.user.findMany({
@@ -82,7 +84,7 @@ export default async function AdminUsersPage() {
                         </span>
                       </p>
 
-                      <UserActions id={u.id} active={u.active} />
+                      <UserActions id={u.id} active={u.active} canDelete={canDelete && u.id !== user.id} />
                     </div>
                   ))
                 )}
