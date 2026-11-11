@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { headers } from "next/headers";
 import "./globals.css";
 import { GlassCursorEffect } from "./components/glass-cursor-effect";
 import { CommandPalette } from "./components/command-palette";
@@ -17,7 +18,18 @@ export const metadata: Metadata = {
   icons: { icon: "/logo.png" },
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // Reading headers() here is what makes this (and therefore every route
+  // under it) opt into dynamic rendering instead of being prerendered as
+  // static HTML. That's required for the nonce-based CSP in middleware.ts:
+  // a nonce is only valid for a single request, and a statically
+  // prerendered page bakes its HTML (and whatever nonce was current at
+  // build time) once, so a fresh per-request nonce can never match it.
+  // Without this, Next.js can't tag its own inline hydration scripts with
+  // the right nonce on static routes — e.g. /login was being prerendered
+  // and every inline script on it kept getting blocked by the CSP.
+  await headers();
+
   return (
     <html lang="en">
       <head>
