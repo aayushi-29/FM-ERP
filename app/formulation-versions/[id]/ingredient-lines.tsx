@@ -111,7 +111,7 @@ export function IngredientLines({
       {error ? <p role="alert" style={{ color: "#b00020", fontSize: ".85rem" }}>{error}</p> : null}
 
       {lines.length === 0 ? (
-        <p style={{ color: "#777" }}>No ingredient lines yet.</p>
+        <p style={{ color: "#5f5f5f" }}>No ingredient lines yet.</p>
       ) : (
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: ".92rem" }}>
           <thead>
@@ -128,7 +128,7 @@ export function IngredientLines({
             {lines.map((line) => (
               <tr key={line.id} style={{ borderBottom: "1px solid #eee" }}>
                 <td style={{ padding: "4px 6px" }}>{line.materialName}</td>
-                <td style={{ padding: "4px 6px", fontSize: ".8rem", color: line.rawMaterialId ? "#2a7a2a" : "#999" }}>
+                <td style={{ padding: "4px 6px", fontSize: ".8rem", color: line.rawMaterialId ? "#2a7a2a" : "#5f5f5f" }}>
                   {line.rawMaterialId ? "Catalog" : "Manual"}
                 </td>
                 <td style={{ padding: "4px 6px" }}>{line.quantity}</td>

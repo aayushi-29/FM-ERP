@@ -4,6 +4,9 @@ import type { SessionUser } from "@/lib/auth/session";
 import { SignOutButton } from "@/app/dashboard/sign-out-button";
 import { NotificationBell } from "./notification-bell";
 import { NavLinks } from "./nav-links";
+import { Footer } from "./footer";
+import { PolicyGate } from "./policy-gate";
+import { CURRENT_POLICY_VERSION } from "@/lib/legal/policy";
 
 const ROLE_LABEL: Record<SessionUser["role"], string> = {
   ADMIN: "Admin",
@@ -30,13 +33,24 @@ function linksForRole(role: SessionUser["role"]): NavLink[] {
     links.push({ href: "/raw-materials", label: "Materials" });
   }
   if (role === "ADMIN") {
-    links.push({ href: "/admin/users", label: "Users" }, { href: "/admin/audit-log", label: "Audit log" });
+    links.push(
+      { href: "/admin/users", label: "Users" },
+      { href: "/admin/audit-log", label: "Audit log" },
+      { href: "/admin/data-requests", label: "Data requests" }
+    );
   }
   return links;
 }
 
 export function Shell({ user, children }: { user: SessionUser; children: ReactNode }) {
   const links = linksForRole(user.role);
+  // 12 Nov 2026, "legal-compliance" branch — see docs/decisions.md item #19.
+  // Every page already renders through this one Shell, so gating here
+  // covers the whole app without touching the many individual
+  // requireUserOrRedirect() call sites. /accept-policies itself renders
+  // without Shell (see that page), so there's no loop.
+  const needsPolicyAcceptance =
+    !user.policiesAcceptedAt || user.policiesVersion !== CURRENT_POLICY_VERSION;
 
   return (
     <>
@@ -60,7 +74,8 @@ export function Shell({ user, children }: { user: SessionUser; children: ReactNo
           </div>
         </div>
       </header>
-      <main className="fm-shell-main">{children}</main>
+      <main className="fm-shell-main">{needsPolicyAcceptance ? <PolicyGate /> : children}</main>
+      <Footer />
     </>
   );
 }

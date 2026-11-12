@@ -106,7 +106,7 @@ export function InvoiceActions({
           ) : null}
 
           <h3 style={{ fontSize: ".95rem", marginTop: 16 }}>Reduce invoice amount (credit note)</h3>
-          <p style={{ color: "#777", fontSize: ".82rem", margin: "0 0 8px" }}>
+          <p style={{ color: "#5f5f5f", fontSize: ".82rem", margin: "0 0 8px" }}>
             Lowers the amount owed on this invoice — for a billing correction or discount. It does
             not refund cash and does not touch bank or payment records.
           </p>

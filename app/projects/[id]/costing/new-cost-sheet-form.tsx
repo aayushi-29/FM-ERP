@@ -68,7 +68,7 @@ export function NewCostSheetForm({
   }
 
   if (formulationVersions.length === 0) {
-    return <p style={{ color: "#777", fontSize: ".85rem" }}>No formulation versions in this project yet — price one once NPD has created a version.</p>;
+    return <p style={{ color: "#5f5f5f", fontSize: ".85rem" }}>No formulation versions in this project yet — price one once NPD has created a version.</p>;
   }
 
   return (

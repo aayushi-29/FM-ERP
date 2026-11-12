@@ -60,7 +60,7 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
 
       <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Formulations</h2>
       {product.formulations.length === 0 ? (
-        <p style={{ color: "#777" }}>No formulations yet.</p>
+        <p style={{ color: "#5f5f5f" }}>No formulations yet.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
           {product.formulations.map((f) => {
@@ -69,7 +69,7 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
               <li key={f.id} style={{ padding: "8px 0", borderBottom: "1px solid #eee" }}>
                 <Link href={`/formulations/${f.id}`}>{f.name}</Link>
                 {latest ? (
-                  <span style={{ color: "#777", fontSize: ".85rem" }}>
+                  <span style={{ color: "#5f5f5f", fontSize: ".85rem" }}>
                     {" · v"}{latest.versionNumber} · {latest.status}
                   </span>
                 ) : null}

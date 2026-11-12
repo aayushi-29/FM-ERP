@@ -29,6 +29,7 @@ rather than drawn from the baseline.
 | 16 | Client payment claims | New: a Client can submit a claim that they've paid an invoice (amount, bank account, mode, acknowledgement/reference no.); an Admin verifies it by Acknowledging (which creates the real Payment) or Rejecting (with a reason). The existing Admin-only Payment recording path is unchanged and stays the system of record. | **Added 29 Oct 2026 (second pass) on the "Changed - Working Logic" branch — see note below** |
 | 17 | MRP visibility to client | New: an Admin-entered `recommendedMrp` on a CostSheet, publishable as a single number ("MRP") on the client's project view. The CostSheet record itself (cost breakdown, `canReadCosting`) stays completely closed to Client — only this one published number is ever exposed. | **Added 29 Oct 2026 (second pass) on the "Changed - Working Logic" branch — see note below** |
 | 18 | Category-aware stock batches | New: raw materials get a `category` (Standard / Perishable / Packaging) and an optional per-batch expiry. Every delivery is its own `StockBatch`, and staff log how much of a batch was Used or Wasted, giving a real received/used/wasted/remaining number per material instead of one pooled total. Deliberately additive to item #7's `stockOnHand`/`StockMovement` (unchanged, still the running total) rather than a replacement. | **Added 11 Nov 2026 on the "Changed - Working Logic" branch — see note below** |
+| 19 | Legal/compliance pass | New: Privacy Policy + Terms of Service pages, a versioned accept-and-record consent flow (`User.policiesAcceptedAt`/`policiesVersion`), a user-facing data access/deletion request flow (`DataSubjectRequest`) with an Admin fulfillment queue, and an accessibility contrast fix. Most of a much longer checklist the user asked about turned out to be N/A for this app (no marketing emails, no subscriptions/payments through this app, no trackers/analytics, no public signup, no reviews or countdown timers) — see `docs/compliance-audit.md` for the full item-by-item breakdown. | **Added 12 Nov 2026 on the "legal-compliance" branch (off Changed-Working-Logic) — see note below** |
 
 ## Non-negotiables carried into every module
 
@@ -311,3 +312,64 @@ behavior documented in the two notes above it — additive only.
   since the first pass, not something this change introduces). Covered by
   `tests/inventory/batches.test.ts` against the same fake-Prisma style as
   `tests/inventory/stock.test.ts`.
+- **Legal/compliance pass (item #19)**: the user listed a long, generic
+  SaaS-compliance checklist (cookie banners, marketing-email unsubscribe,
+  subscription cancellation, refund policy, SOC2 claims, fake reviews,
+  countdown timers, DPAs, sub-processor lists, uptime SLAs, and more) and
+  asked that anything applicable be fixed, on a separate branch. Before
+  changing anything, the codebase was actually audited (grep across
+  `app/`/`lib/` for mailers, analytics/tracking SDKs, payment/subscription
+  libraries, countdown/review components, SOC2/uptime language) rather than
+  assuming the checklist's premise. The audit's conclusion, in full in
+  `docs/compliance-audit.md`: this is an internal, invite-only B2B
+  operations tool — accounts are created by an Admin
+  (`app/api/users/route.ts`), there's no public signup, no marketing emails
+  are sent, no third-party analytics/ad/tracking SDK is integrated, and no
+  payment/subscription is processed through the app itself. Roughly two
+  thirds of the checklist (cookie-consent banner, email unsubscribe,
+  marketing consent, refund/cancellation/auto-renewal disclosures, fake
+  reviews/countdown-timer removal, SOC2/uptime-claim removal, parental
+  consent) is therefore not applicable as the app stands today — there is
+  nothing to fix because the thing the item warns against isn't present.
+  Saying so, with the grep evidence, was treated as more honest than adding
+  compliance theater (e.g., a cookie-consent gate in front of the one
+  strictly-necessary session cookie, which would only break login).
+  What genuinely was missing and got built, additively, on top of
+  `Changed-Working-Logic`:
+  - `app/legal/privacy/page.tsx` and `app/legal/terms/page.tsx` — public,
+    unauthenticated pages. Grounded in what the app actually does, not a
+    generic template; `[FILL IN]` markers mark the handful of facts only
+    Food Monk can supply (legal entity name, registered address, a real
+    contact address, governing-law jurisdiction, the actual hosting/DB
+    provider once chosen, a real retention-days number). These are a
+    starting draft, not a substitute for a lawyer's review.
+  - `User.policiesAcceptedAt`/`policiesVersion` (nullable, additive) plus
+    `lib/legal/policy.ts`'s `CURRENT_POLICY_VERSION` — a real, timestamped,
+    versioned acceptance record, not just a boolean. `app/accept-policies/`
+    is the checkbox page; `/api/auth/accept-policies` records it and logs
+    an audit entry. Enforced once, centrally, in
+    `app/components/shell.tsx` (every protected page already renders
+    through `Shell`) rather than inside `requireUser`/`requireUserOrRedirect`
+    themselves — those two functions are called from dozens of existing
+    routes/pages and by the full existing test suite, so changing their
+    behavior was the higher-risk path for the same outcome.
+  - `DataSubjectRequest` (new, additive model) — a real "request a copy of
+    my data" / "delete my account" flow at `app/data-requests/` (any signed
+    in user) with an Admin queue at `app/admin/data-requests/` to mark a
+    request Fulfilled/Declined. Deliberately does not auto-export or
+    auto-delete anything — fulfillment is a manual, audited admin action,
+    consistent with this app's existing deny-by-default, no-implicit-
+    automation posture (baseline §4/§7).
+  - A real accessibility fix, not just a policy statement: roughly a dozen
+    places used inline `color: "#777"`/`"#888"`/`"#999"` for secondary text,
+    which contrast-checks to ~4.2–4.5:1 against white — under WCAG AA's
+    4.5:1 for normal text. Darkened to `#5f5f5f` (~6.4:1). A `<span
+    onClick>` in `app/notifications/notification-feed.tsx` (mouse-only,
+    no keyboard focus or activation) was changed to a real `<button>`.
+  What's intentionally left as documented follow-up rather than code, because
+  it needs real business facts or a real contract, not more code: naming
+  the actual hosting/DB provider and any future sub-processor, setting a
+  real data-retention number, a lawyer's pass on the disclaimer/governing-law
+  clauses, and Data Processing Agreements with whatever sub-processors are
+  eventually chosen. See `docs/compliance-audit.md`'s "Needs a human, not
+  code" section.

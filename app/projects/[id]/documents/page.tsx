@@ -50,11 +50,11 @@ export default async function DocumentsPage({ params }: { params: { id: string }
       </p>
       <h1>Documents</h1>
       {user.role === "CLIENT" ? (
-        <p style={{ color: "#777", fontSize: ".88rem" }}>Showing files approved for your organization.</p>
+        <p style={{ color: "#5f5f5f", fontSize: ".88rem" }}>Showing files approved for your organization.</p>
       ) : null}
 
       {documents.length === 0 ? (
-        <p style={{ color: "#777" }}>No documents yet.</p>
+        <p style={{ color: "#5f5f5f" }}>No documents yet.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
           {documents.map((doc) => (

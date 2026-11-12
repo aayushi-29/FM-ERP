@@ -42,7 +42,7 @@ export default async function FormulationDetailPage({ params }: { params: { id: 
         {formulation.versions.map((v) => (
           <li key={v.id} style={{ padding: "8px 0", borderBottom: "1px solid #eee" }}>
             <Link href={`/formulation-versions/${v.id}`}>v{v.versionNumber}</Link>
-            <span style={{ color: "#777", fontSize: ".85rem" }}>
+            <span style={{ color: "#5f5f5f", fontSize: ".85rem" }}>
               {" · "}{v.status}
               {v.decidedAt ? ` · decided ${new Date(v.decidedAt).toLocaleDateString()}` : ""}
             </span>

@@ -89,9 +89,14 @@ export function NotificationFeed({
             {content}
           </a>
         ) : (
-          <span onClick={() => markOneRead(n.id)} style={{ cursor: "pointer" }}>
+          // 12 Nov 2026, "legal-compliance" branch (docs/decisions.md item
+          // #19): was a <span onClick>, reachable by mouse only — no
+          // keyboard focus, no Enter/Space activation. A real <button>
+          // gets both for free; className keeps it visually identical to
+          // the <a> branch above.
+          <button type="button" className="fm-notif-feed-item-btn" onClick={() => markOneRead(n.id)}>
             {content}
-          </span>
+          </button>
         )}
         {!n.isRead && pendingId !== n.id ? <span className="fm-badge fm-badge-warn">Unread</span> : null}
       </li>

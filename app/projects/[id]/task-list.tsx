@@ -38,7 +38,7 @@ export function TaskList({ tasks }: { tasks: Task[] }) {
     }
   }
 
-  if (tasks.length === 0) return <p style={{ color: "#777" }}>No tasks yet.</p>;
+  if (tasks.length === 0) return <p style={{ color: "#5f5f5f" }}>No tasks yet.</p>;
 
   return (
     <>
@@ -48,7 +48,7 @@ export function TaskList({ tasks }: { tasks: Task[] }) {
         <li key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #eee" }}>
           <span style={{ flex: 1 }}>
             {t.title}
-            <span style={{ color: "#777", fontSize: ".82rem" }}>
+            <span style={{ color: "#5f5f5f", fontSize: ".82rem" }}>
               {t.assignee ? ` · ${t.assignee.name}` : " · unassigned"}
               {t.dueDate ? ` · due ${new Date(t.dueDate).toLocaleDateString()}` : ""}
             </span>

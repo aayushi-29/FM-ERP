@@ -60,13 +60,13 @@ export function RevisionRequestsSection({
   return (
     <div>
       {revisionRequests.length === 0 ? (
-        <p style={{ color: "#777" }}>No rework requests on this version.</p>
+        <p style={{ color: "#5f5f5f" }}>No rework requests on this version.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
           {revisionRequests.map((r) => (
             <li key={r.id} style={{ padding: "8px 0", borderBottom: "1px solid #eee", fontSize: ".9rem" }}>
               <span className="fm-badge" style={{ fontSize: ".72rem" }}>{r.status}</span>
-              <span style={{ color: "#777", marginLeft: 6 }}>
+              <span style={{ color: "#5f5f5f", marginLeft: 6 }}>
                 by {r.requestedBy.name} · {new Date(r.createdAt).toLocaleDateString()}
                 {r.addressedAt ? ` · addressed ${new Date(r.addressedAt).toLocaleDateString()}` : ""}
               </span>
@@ -96,7 +96,7 @@ export function RevisionRequestsSection({
         </form>
       ) : null}
       {canFile && hasOpenRequest ? (
-        <p style={{ color: "#777", fontSize: ".85rem", marginTop: 8 }}>
+        <p style={{ color: "#5f5f5f", fontSize: ".85rem", marginTop: 8 }}>
           You already have an open rework request on this version.
         </p>
       ) : null}

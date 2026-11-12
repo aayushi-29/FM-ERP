@@ -89,7 +89,54 @@ model User {
   stockBatchesRecorded         StockBatch[]         @relation("StockBatchRecorder")
   stockBatchMovementsRecorded  StockBatchMovement[]  @relation("StockBatchMovementRecorder")
 
+  // 12 Nov 2026, "legal-compliance" branch: lightweight consent-tracking,
+  // additive only — see docs/decisions.md item #19. Null means "has not
+  // accepted the current Privacy Policy / Terms of Service yet"; every
+  // existing row defaults to null, so no existing user is retroactively
+  // treated as having agreed to anything. policiesVersion lets a future
+  // policy update force everyone to re-accept, rather than only ever
+  // checking "is this column non-null".
+  policiesAcceptedAt   DateTime?
+  policiesVersion      String?
+  dataRequestsMade      DataSubjectRequest[] @relation("DataSubjectRequester")
+  dataRequestsResolved  DataSubjectRequest[] @relation("DataSubjectResolver")
+
   @@index([clientOrgId])
+}
+
+// 12 Nov 2026, "legal-compliance" branch: a minimal, honest implementation
+// of "users can request a copy of their data or request deletion" — see
+// docs/decisions.md item #19. This intentionally does NOT auto-export or
+// auto-delete anything (that's a much larger, riskier feature); it gives
+// the user a real, audited way to ask, and gives an Admin a real queue to
+// act on and mark resolved. Fulfillment itself stays a manual, logged
+// admin action for now, same trust boundary as everything else in this app
+// (deny-by-default, no implicit automation on anyone else's account).
+enum DataRequestType {
+  EXPORT
+  DELETE
+}
+
+enum DataRequestStatus {
+  OPEN
+  FULFILLED
+  DECLINED
+}
+
+model DataSubjectRequest {
+  id           String             @id @default(cuid())
+  userId       String
+  user         User               @relation("DataSubjectRequester", fields: [userId], references: [id])
+  type         DataRequestType
+  status       DataRequestStatus  @default(OPEN)
+  note         String?
+  requestedAt  DateTime           @default(now())
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   User?              @relation("DataSubjectResolver", fields: [resolvedById], references: [id])
+
+  @@index([status])
+  @@index([userId])
 }
 
 // Decision (28 Oct 2026): email + password for the MVP. DB-backed sessions

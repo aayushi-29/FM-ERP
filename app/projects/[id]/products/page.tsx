@@ -51,13 +51,13 @@ export default async function ProductsPage({ params }: { params: { id: string } 
       ) : null}
 
       {products.length === 0 ? (
-        <p style={{ color: "#777" }}>No products yet.</p>
+        <p style={{ color: "#5f5f5f" }}>No products yet.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
           {products.map((p) => (
             <li key={p.id} style={{ padding: "8px 0", borderBottom: "1px solid #eee" }}>
               <Link href={`/products/${p.id}`}>{p.name}</Link>
-              <span style={{ color: "#777", fontSize: ".85rem" }}>
+              <span style={{ color: "#5f5f5f", fontSize: ".85rem" }}>
                 {" · "}{p._count.formulations} formulation{p._count.formulations === 1 ? "" : "s"}
               </span>
             </li>

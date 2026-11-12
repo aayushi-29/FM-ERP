@@ -49,7 +49,7 @@ export function MilestoneList({
     }
   }
 
-  if (milestones.length === 0) return <p style={{ color: "#777" }}>No milestones yet.</p>;
+  if (milestones.length === 0) return <p style={{ color: "#5f5f5f" }}>No milestones yet.</p>;
 
   return (
     <>
@@ -59,7 +59,7 @@ export function MilestoneList({
           <li key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #eee" }}>
             <span style={{ flex: 1 }}>
               {m.title}
-              <span style={{ color: "#777", fontSize: ".82rem" }}>
+              <span style={{ color: "#5f5f5f", fontSize: ".82rem" }}>
                 {" · "}
                 {m.status}
                 {m.dueDate ? ` · due ${new Date(m.dueDate).toLocaleDateString()}` : ""}

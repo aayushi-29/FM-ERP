@@ -96,7 +96,7 @@ export function DocumentRow({
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <strong>{document.type.replace(/_/g, " ")}</strong>
-        <span style={{ color: "#777", fontSize: ".85rem" }}>
+        <span style={{ color: "#5f5f5f", fontSize: ".85rem" }}>
           {document.visibility === "CLIENT_VISIBLE" ? "Client-visible" : "Internal only"} · uploaded by {document.uploadedByName}
         </span>
         {canManage ? (
@@ -115,7 +115,7 @@ export function DocumentRow({
           <a href={`/api/documents/${document.id}/versions/${latest.id}/download`}>
             {latest.fileName}
           </a>
-          <span style={{ color: "#777" }}>
+          <span style={{ color: "#5f5f5f" }}>
             {" "}(v{latest.versionNumber} · {formatSize(latest.fileSizeBytes)} · {new Date(latest.uploadedAt).toLocaleDateString()})
           </span>
         </p>
@@ -123,14 +123,14 @@ export function DocumentRow({
 
       {document.versions.length > 1 ? (
         <details style={{ marginTop: 4 }}>
-          <summary style={{ fontSize: ".82rem", color: "#777", cursor: "pointer" }}>
+          <summary style={{ fontSize: ".82rem", color: "#5f5f5f", cursor: "pointer" }}>
             {document.versions.length - 1} earlier version{document.versions.length - 1 === 1 ? "" : "s"}
           </summary>
           <ul style={{ listStyle: "none", padding: 0, margin: "4px 0 0" }}>
             {document.versions.slice(1).map((v) => (
               <li key={v.id} style={{ fontSize: ".85rem" }}>
                 <a href={`/api/documents/${document.id}/versions/${v.id}/download`}>{v.fileName}</a>
-                <span style={{ color: "#777" }}> (v{v.versionNumber} · {formatSize(v.fileSizeBytes)})</span>
+                <span style={{ color: "#5f5f5f" }}> (v{v.versionNumber} · {formatSize(v.fileSizeBytes)})</span>
               </li>
             ))}
           </ul>

@@ -127,14 +127,14 @@ export function ProposalSection({ leadId, proposals }: { leadId: string; proposa
       {error ? <p style={{ color: "#b00020", fontSize: ".85rem" }}>{error}</p> : null}
 
       {proposals.length === 0 ? (
-        <p style={{ color: "#777", fontSize: ".9rem" }}>No proposals yet.</p>
+        <p style={{ color: "#5f5f5f", fontSize: ".9rem" }}>No proposals yet.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
           {proposals.map((p) => (
             <li key={p.id} style={{ padding: "10px 0", borderBottom: "1px solid #eee" }}>
               <p style={{ margin: 0 }}>
                 <strong>v{p.versionNumber} — {p.title}</strong>{" "}
-                <span style={{ color: "#777", fontSize: ".85rem" }}>· {STATUS_LABEL[p.status]}</span>
+                <span style={{ color: "#5f5f5f", fontSize: ".85rem" }}>· {STATUS_LABEL[p.status]}</span>
               </p>
               <p style={{ whiteSpace: "pre-wrap", color: "#555", fontSize: ".9rem" }}>{p.content}</p>
               {p.reviewNotes ? (

@@ -36,7 +36,7 @@ export function SetStockForm({ rawMaterialId, currentStock }: { rawMaterialId: s
 
   return (
     <form onSubmit={handleSubmit} style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
-      <label style={{ fontSize: ".78rem", color: "#777", display: "flex", alignItems: "center", gap: 4 }}>
+      <label style={{ fontSize: ".78rem", color: "#5f5f5f", display: "flex", alignItems: "center", gap: 4 }}>
         Set stock to
         <input
           type="number"

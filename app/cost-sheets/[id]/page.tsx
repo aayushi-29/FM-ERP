@@ -71,7 +71,7 @@ export default async function CostSheetDetailPage({ params }: { params: { id: st
             Suggested selling price: <strong>{costSheet.recommendedSellingPrice.toString()} {costSheet.currency}</strong> / unit
             {costSheet.markupPercent ? ` (${costSheet.markupPercent.toString()}% markup on cost)` : ""}
             <br />
-            <span style={{ color: "#777", fontSize: ".8rem" }}>
+            <span style={{ color: "#5f5f5f", fontSize: ".8rem" }}>
               Suggestion only — not an approved price. Decision #4&apos;s costing formula still needs accountant
               sign-off.
             </span>
@@ -120,7 +120,7 @@ export default async function CostSheetDetailPage({ params }: { params: { id: st
       {canManageCosting(user.role) ? (
         <div style={{ marginTop: 20, padding: 14, background: "#f7f7f7", borderRadius: 8 }}>
           <h2 style={{ fontSize: "1.05rem", marginTop: 0 }}>MRP for the client</h2>
-          <p style={{ color: "#777", fontSize: ".85rem" }}>
+          <p style={{ color: "#5f5f5f", fontSize: ".85rem" }}>
             Set the final price to charge, separate from the cost figures above. Publishing shows
             only this number — nothing else on this page — to the client.
           </p>

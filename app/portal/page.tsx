@@ -24,7 +24,7 @@ export default async function ClientPortalPage() {
     return (
       <Shell user={user}>
         <h1>Client Portal</h1>
-        <p style={{ color: "#777" }}>Your account isn&apos;t linked to a client organization yet.</p>
+        <p style={{ color: "#5f5f5f" }}>Your account isn&apos;t linked to a client organization yet.</p>
       </Shell>
     );
   }

@@ -132,7 +132,7 @@ export function TrialsSection({
       {error ? <p role="alert" style={{ color: "#b00020", fontSize: ".85rem" }}>{error}</p> : null}
 
       {trials.length === 0 ? (
-        <p style={{ color: "#777" }}>No trials logged yet.</p>
+        <p style={{ color: "#5f5f5f" }}>No trials logged yet.</p>
       ) : (
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: ".88rem" }}>
@@ -154,7 +154,7 @@ export function TrialsSection({
                   </td>
                   <td style={{ padding: "8px", maxWidth: 220 }}>{t.parameters ?? "—"}</td>
                   <td style={{ padding: "8px", maxWidth: 220, color: "#555" }}>{t.results ?? "—"}</td>
-                  <td style={{ padding: "8px", color: "#777", whiteSpace: "nowrap" }}>
+                  <td style={{ padding: "8px", color: "#5f5f5f", whiteSpace: "nowrap" }}>
                     {new Date(t.conductedAt).toLocaleDateString()}
                   </td>
                   <td style={{ padding: "8px" }}>

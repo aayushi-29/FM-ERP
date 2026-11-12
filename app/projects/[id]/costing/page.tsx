@@ -92,7 +92,7 @@ export default async function CostingPage({ params }: { params: { id: string } }
         <>
           <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Cost sheets</h2>
           {costSheets.length === 0 ? (
-            <p style={{ color: "#777" }}>No cost sheets yet.</p>
+            <p style={{ color: "#5f5f5f" }}>No cost sheets yet.</p>
           ) : (
             <ul style={{ listStyle: "none", padding: 0 }}>
               {costSheets.map((cs) => (
@@ -100,7 +100,7 @@ export default async function CostingPage({ params }: { params: { id: string } }
                   <Link href={`/cost-sheets/${cs.id}`}>
                     {cs.formulationVersion.formulation.name} v{cs.formulationVersion.versionNumber}
                   </Link>
-                  <span style={{ color: "#777" }}>
+                  <span style={{ color: "#5f5f5f" }}>
                     {" · "}{cs.priceBasis} · {cs.costPerUnit.toString()}/unit ({cs.costPerBatch.toString()} per batch) {cs.currency}
                     {" · by "}{cs.createdBy.name} · {new Date(cs.createdAt).toLocaleDateString()}
                   </span>
@@ -119,13 +119,13 @@ export default async function CostingPage({ params }: { params: { id: string } }
 
           <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Expenses</h2>
           {expenses.length === 0 ? (
-            <p style={{ color: "#777" }}>No expenses logged yet.</p>
+            <p style={{ color: "#5f5f5f" }}>No expenses logged yet.</p>
           ) : (
             <ul style={{ listStyle: "none", padding: 0 }}>
               {expenses.map((e) => (
                 <li key={e.id} style={{ padding: "6px 0", borderBottom: "1px solid #eee", fontSize: ".9rem" }}>
                   {e.description}
-                  <span style={{ color: "#777" }}>
+                  <span style={{ color: "#5f5f5f" }}>
                     {" · "}{e.amount.toString()} {e.currency} · {e.createdBy.name} · {new Date(e.incurredAt).toLocaleDateString()}
                   </span>
                 </li>
@@ -144,16 +144,16 @@ export default async function CostingPage({ params }: { params: { id: string } }
         <>
           <h2 style={{ fontSize: "1.05rem", marginTop: 24 }}>Invoices</h2>
           {user.role === "CLIENT" ? (
-            <p style={{ color: "#777", fontSize: ".85rem" }}>Showing invoices sent to your organization.</p>
+            <p style={{ color: "#5f5f5f", fontSize: ".85rem" }}>Showing invoices sent to your organization.</p>
           ) : null}
           {invoices.length === 0 ? (
-            <p style={{ color: "#777" }}>No invoices yet.</p>
+            <p style={{ color: "#5f5f5f" }}>No invoices yet.</p>
           ) : (
             <ul style={{ listStyle: "none", padding: 0 }}>
               {invoices.map((inv) => (
                 <li key={inv.id} style={{ padding: "6px 0", borderBottom: "1px solid #eee", fontSize: ".9rem" }}>
                   <Link href={`/invoices/${inv.id}`}>{inv.invoiceNumber}</Link>
-                  <span style={{ color: "#777" }}>
+                  <span style={{ color: "#5f5f5f" }}>
                     {" · "}{inv.status} · {inv.amount.toString()} {inv.currency}
                     {inv.paymentStage ? ` · ${PAYMENT_STAGE_LABEL[inv.paymentStage]}` : ""}
                     {inv.milestoneLabel ? ` · ${inv.milestoneLabel}` : ""}

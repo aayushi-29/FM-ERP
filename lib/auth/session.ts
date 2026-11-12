@@ -21,6 +21,13 @@ export type SessionUser = {
   name: string;
   role: Role;
   clientOrgId: string | null;
+  // 12 Nov 2026, "legal-compliance" branch (docs/decisions.md item #19):
+  // surfaced here, not gated here — app/components/shell.tsx decides what
+  // to do with it. Keeping the gate out of this file means the many
+  // existing requireUser()/requireUserOrRedirect() call sites (API routes,
+  // pages, the full existing test suite) keep behaving exactly as before.
+  policiesAcceptedAt: Date | null;
+  policiesVersion: string | null;
 };
 
 export async function createSession(userId: string): Promise<string> {
@@ -100,5 +107,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     name: user.name,
     role: user.role,
     clientOrgId: user.clientOrgId,
+    policiesAcceptedAt: user.policiesAcceptedAt,
+    policiesVersion: user.policiesVersion,
   };
 }

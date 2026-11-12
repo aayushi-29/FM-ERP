@@ -902,12 +902,28 @@ main {
 }
 
 .fm-notif-feed-item a,
-.fm-notif-feed-item span:first-child {
+.fm-notif-feed-item span:first-child,
+.fm-notif-feed-item-btn {
   color: inherit;
   text-decoration: none;
   display: flex;
   flex-direction: column;
   gap: 3px;
+}
+
+/* 12 Nov 2026, "legal-compliance" branch (docs/decisions.md item #19): a
+   <button> standing in for what used to be a mouse-only clickable <span>
+   (see notification-feed.tsx) — reset so it looks identical, not like a
+   form control, while keeping real keyboard focus/activation. */
+.fm-notif-feed-item-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
 }
 
 .fm-notif-feed-item-unread {
@@ -1460,4 +1476,36 @@ main {
   font-size: 0.86rem;
   margin: 0;
   font-style: italic;
+}
+
+/* 12 Nov 2026, "legal-compliance" branch (docs/decisions.md item #19): a
+   footer did not exist before this — just enough styling to sit quietly
+   under every page without fighting the existing layout. */
+.fm-footer {
+  max-width: 1180px;
+  margin: 2.5rem auto 1.5rem;
+  padding: 1rem 1.5rem 0;
+  border-top: 1px solid rgba(132, 122, 108, 0.25);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+}
+
+.fm-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.1rem;
+}
+
+.fm-footer nav a {
+  color: var(--fm-text-muted);
+  text-decoration: none;
+}
+
+.fm-footer nav a:hover,
+.fm-footer nav a:focus-visible {
+  text-decoration: underline;
 }

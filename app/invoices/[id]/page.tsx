@@ -87,7 +87,7 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
             {invoice.payments.map((p) => (
               <li key={p.id} style={{ padding: "6px 0", borderBottom: "1px solid #eee", fontSize: ".9rem" }}>
                 {p.amount.toString()} {invoice.currency}
-                <span style={{ color: "#777" }}>
+                <span style={{ color: "#5f5f5f" }}>
                   {" · "}{new Date(p.receivedAt).toLocaleDateString()}
                   {p.method ? ` · ${p.method}` : ""}
                   {p.reference ? ` · ref ${p.reference}` : ""}
@@ -128,7 +128,7 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
             {invoice.paymentClaims.map((c: (typeof invoice.paymentClaims)[number]) => (
               <li key={c.id} style={{ padding: "6px 0", borderBottom: "1px solid #eee", fontSize: ".9rem" }}>
                 {c.amount.toString()} {invoice.currency} · {c.paymentMode} · ref {c.acknowledgementOrInvoiceNumber}
-                <span style={{ color: "#777" }}>
+                <span style={{ color: "#5f5f5f" }}>
                   {" · "}
                   {new Date(c.submittedAt).toLocaleDateString()} ·{" "}
                   <strong
