@@ -48,6 +48,10 @@ const securityHeaders = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // 12 Nov 2026, "legal-compliance" branch: Next.js sends "X-Powered-By:
+  // Next.js" by default — minor info disclosure (tells an attacker the
+  // framework/version family for free). No functional reason to keep it.
+  poweredByHeader: false,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

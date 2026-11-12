@@ -30,6 +30,7 @@ rather than drawn from the baseline.
 | 17 | MRP visibility to client | New: an Admin-entered `recommendedMrp` on a CostSheet, publishable as a single number ("MRP") on the client's project view. The CostSheet record itself (cost breakdown, `canReadCosting`) stays completely closed to Client — only this one published number is ever exposed. | **Added 29 Oct 2026 (second pass) on the "Changed - Working Logic" branch — see note below** |
 | 18 | Category-aware stock batches | New: raw materials get a `category` (Standard / Perishable / Packaging) and an optional per-batch expiry. Every delivery is its own `StockBatch`, and staff log how much of a batch was Used or Wasted, giving a real received/used/wasted/remaining number per material instead of one pooled total. Deliberately additive to item #7's `stockOnHand`/`StockMovement` (unchanged, still the running total) rather than a replacement. | **Added 11 Nov 2026 on the "Changed - Working Logic" branch — see note below** |
 | 19 | Legal/compliance pass | New: Privacy Policy + Terms of Service pages, a versioned accept-and-record consent flow (`User.policiesAcceptedAt`/`policiesVersion`), a user-facing data access/deletion request flow (`DataSubjectRequest`) with an Admin fulfillment queue, and an accessibility contrast fix. Most of a much longer checklist the user asked about turned out to be N/A for this app (no marketing emails, no subscriptions/payments through this app, no trackers/analytics, no public signup, no reviews or countdown timers) — see `docs/compliance-audit.md` for the full item-by-item breakdown. | **Added 12 Nov 2026 on the "legal-compliance" branch (off Changed-Working-Logic) — see note below** |
+| 20 | Security audit pass | Audited (not assumed) against a long security checklist — see `docs/security-audit.md`. Most of it was already solid (auth, admin-route/row-level scoping, CSRF, login rate-limiting, CSP/security headers, bcrypt cost 12, no stack-trace leaks, no secrets in the codebase or its git history). Fixed: `poweredByHeader: false`, a disallow-all `robots.txt`, and a safe (non-breaking) `npm audit fix`. Flagged rather than force-fixed: three dependencies (`zod`, `next`, `vitest`) whose remaining advisories only clear via a major version bump — too risky to force blind in this sandbox (no live DB/dev-server to verify against). | **Added 12 Nov 2026 on the "legal-compliance" branch — see note below** |
 
 ## Non-negotiables carried into every module
 
@@ -373,3 +374,39 @@ behavior documented in the two notes above it — additive only.
   clauses, and Data Processing Agreements with whatever sub-processors are
   eventually chosen. See `docs/compliance-audit.md`'s "Needs a human, not
   code" section.
+- **Security audit pass (item #20)**: same honest-audit approach as item
+  #19 — every item on the user's checklist was actually checked against
+  this codebase before anything was changed, full results in
+  `docs/security-audit.md`. The headline finding is that this app already
+  had a real security pass behind it (its own code comments reference an
+  earlier "build brief's security checklist"): deny-by-default auth on
+  every page/route (checked all of them, not a sample), record-level data
+  scoping tested by `tests/*/scope.test.ts`, CSRF same-origin checks on all
+  60 mutating routes, login rate-limiting with an honestly-documented
+  in-memory caveat, a real CSP/HSTS/X-Frame-Options header set, bcrypt at
+  cost 12, no stack traces ever returned to a client, and a clean git
+  history (scanned in full, not just the current tree) with no secret ever
+  committed.
+  What was genuinely missing, fixed here: `poweredByHeader: false` (Next.js
+  announces itself via `X-Powered-By` by default — no reason to keep that
+  free framework-fingerprinting info), a disallow-all `public/robots.txt`
+  (this tool should never be crawled/indexed), and a safe `npm audit fix`
+  (no `--force`) that cleared every vulnerability fixable within the
+  existing dependency version ranges — verified by confirming `package.json`
+  itself didn't change and the full test suite still passes.
+  What's flagged rather than fixed: `npm audit` still reports 18
+  vulnerabilities, every one of which only clears via a major version bump
+  (`zod` 3→4, `next` 14→16, `vitest` 2→5). The `zod` one is the one that
+  actually matters at runtime (it validates input on every API route) — but
+  Zod v4 changed parts of its API, and this sandbox has no live database or
+  real dev server to verify 53 schemas still behave correctly after a major
+  bump, and `tsc` can't be used as a safety net here either (pre-existing,
+  unrelated errors from the Prisma-client generation limits noted in
+  `tests/setup/fakePrisma.ts`). Forcing it blind inside an unrelated
+  compliance/security sweep was judged a worse outcome than documenting it
+  clearly as the top follow-up item, on its own branch, with real testing.
+  `next`/`vitest`'s remaining flagged issues (a Server Actions DoS this app
+  can't hit — no `"use server"` anywhere in the codebase — and a couple of
+  build-tool-chain CVEs in `postcss`/`tinypool` that only run during
+  build/test, never in front of a real user) are lower real-world priority
+  for the same reason.
